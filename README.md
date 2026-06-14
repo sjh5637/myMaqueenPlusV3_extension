@@ -1,5 +1,10 @@
 # Maqueen Plus V2
 
+> [!NOTE]
+> **Fork & Customization Notice**
+> * English: This repository is copied/modified from the original [DFRobot/pxt-DFRobot_MaqueenPlus_v20](https://github.com/DFRobot/pxt-DFRobot_MaqueenPlus_v20) extension to support custom blocks and specific features.
+> * 한국어: 본 저장소는 오리지널 [DFRobot/pxt-DFRobot_MaqueenPlus_v20](https://github.com/DFRobot/pxt-DFRobot_MaqueenPlus_v20) 확장을 복사하여 작성자가 원하는 블록 및 기능을 추가/수정하기 위해 재구성한 프로젝트입니다.
+
 ## Introduction
 
 This is the latest version of Maqueen Plus, a programming robot for STEAM education. Optimized with more expansion ports, larger capacity power supply and larger body, the Maqueen Plus V2.0 can be perfectly compatible with more peripheral components like HuskyLens AI camera and Maqueen Mechanic kits, which makes it an accessible STEAM robot teaching tool for primary and secondary students. Besides, it can be not only suitable for classroom teaching, but also can be used for after-school extended exercises and robot competitions. Besides all the functions of Maqueen Lite, it offers richer and more flexible functions and stronger performance. Whether you have ever used Maqueen series products or not, you'll find it very easy to get started.
