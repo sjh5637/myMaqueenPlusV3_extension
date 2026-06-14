@@ -111,5 +111,11 @@
     "{id:group}Sensors": "센서 감지",
     "{id:group}NeoPixel": "네오픽셀 RGB",
     "{id:group}V3": "V3 전용 기능",
-    "{id:group}Effects": "애니메이션 효과"
+    "{id:group}Effects": "애니메이션 효과",
+    "maqueenPlusV2.NeoPixelIndex.LED1|block": "1 (앞쪽 왼쪽)",
+    "maqueenPlusV2.NeoPixelIndex.LED2|block": "2 (뒤쪽 왼쪽)",
+    "maqueenPlusV2.NeoPixelIndex.LED3|block": "3 (뒤쪽 오른쪽)",
+    "maqueenPlusV2.NeoPixelIndex.LED4|block": "4 (앞쪽 오른쪽)",
+    "maqueenPlusV2.NeoPixelIndex.All|block": "전체",
+    "maqueenPlusV2.setOnboardRGB|block": "RGB LED 핀%pin | 온보드 %index 색상 %rgb=neopixel_colors 표시"
 }

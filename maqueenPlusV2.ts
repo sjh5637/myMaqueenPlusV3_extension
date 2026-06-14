@@ -492,6 +492,37 @@ namespace maqueenPlusV2 {
     export function colors(color: NeoPixelColors): number {
         return color;
     }
+    export enum NeoPixelIndex {
+        //% block="1 (Left Front)"
+        LED1 = 0,
+        //% block="2 (Left Rear)"
+        LED2 = 1,
+        //% block="3 (Right Rear)"
+        LED3 = 2,
+        //% block="4 (Right Front)"
+        LED4 = 3,
+        //% block="All"
+        All = 4
+    }
+
+    /**
+     * Set the color of a specific onboard NeoPixel LED
+     * @param pin pin to control the leds
+     * @param index onboard LED index selection
+     * @param rgb selected color
+     */
+    //% weight=65
+    //% pin.defl=DigitalPin.P15
+    //% block="SET PIN|%pin onboard RGB LED|%index show color|%rgb=neopixel_colors"
+    //% group="NeoPixel"
+    export function setOnboardRGB(pin: DigitalPin, index: NeoPixelIndex, rgb: number) {
+        if (index === NeoPixelIndex.All) {
+            showColor(pin, rgb);
+        } else {
+            setIndexColor(pin, index as number, rgb);
+        }
+    }
+
     /**
      * Set the color of the specified LEDs
      * @param pin , pin to control the leds 
@@ -794,8 +825,9 @@ namespace maqueenPlusV2 {
 
 
     /**
-     * Set the line-following speed of the trolley.
-     * @param speed to speed ,eg: PatrolSpeed.Speed1
+     * Maqueen Plus V3의 내장 라인 트레이싱 주행 속도를 설정합니다. (1단계 ~ 5단계)
+     * Set the line-following speed of Maqueen Plus V3. (Level 1 - 5)
+     * @param speed Patrol speed level
      */
 
     //% block="Line Following Settings Speed %speed=PatrolSpeed_conv"
@@ -824,8 +856,9 @@ namespace maqueenPlusV2 {
     }
 
     /**
-     * ...
-     * @param mode to mode ,eg: Intersection.Straight
+     * 마퀸플러스 V3가 십자 교차로를 감지했을 때의 이동 방향을 설정합니다.
+     * Set the movement direction when Maqueen Plus V3 detects a crossroad intersection.
+     * @param mode Intersection action (Straight, Left, Right, Stop)
      */
     maqueenPlusV2.setRightOrStraightRunMode(RightOrStraight.Straight)
     //% block="At Crossroads %mode"
@@ -840,8 +873,9 @@ namespace maqueenPlusV2 {
     }
 
     /**
-     * ...
-     * @param mode to mode ,eg: Trord.Left
+     * 마퀸플러스 V3가 T자 교차로를 감지했을 때의 이동 방향을 설정합니다.
+     * Set the movement direction when Maqueen Plus V3 detects a T-junction.
+     * @param mode T-junction action (Left, Right, Stop)
      */
 
     //% block="At T-junction %mode"
@@ -856,8 +890,9 @@ namespace maqueenPlusV2 {
     }
 
     /**
-     * ...
-     * @param mode to mode ,eg: LeftOrStraight.Straight
+     * 마퀸플러스 V3가 좌회전/직진 삼거리를 감지했을 때의 이동 방향을 설정합니다.
+     * Set the movement direction when Maqueen Plus V3 detects a Left-Turn or Straight intersection.
+     * @param mode Action (Straight, Left, Stop)
      */
 
     //% block="At Left Turn and Straight Intersection %mode"
@@ -872,8 +907,9 @@ namespace maqueenPlusV2 {
     }
 
     /**
-     * ...
-     * @param mode to mode ,eg: RightOrStraight.Straight
+     * 마퀸플러스 V3가 우회전/직진 삼거리를 감지했을 때의 이동 방향을 설정합니다.
+     * Set the movement direction when Maqueen Plus V3 detects a Right-Turn or Straight intersection.
+     * @param mode Action (Straight, Right, Stop)
      */
 
     //% block="At Right Turn and Straight Intersection %mode"
@@ -888,8 +924,9 @@ namespace maqueenPlusV2 {
     }
 
     /**
-     * Set the line-following function.
-     * @param patrol to patrol ,eg: Patrolling.ON
+     * 마퀸플러스 V3의 자동 라인 트레이싱 기능을 시작(ON)하거나 중지(OFF)합니다.
+     * Turn the built-in line patrolling function ON or OFF for Maqueen Plus V3.
+     * @param patrol Patrolling state
      */
 
     //% block="Line patrolling %patrol"
@@ -907,7 +944,8 @@ namespace maqueenPlusV2 {
     }
 
     /**
-     * Get the status of the intersection
+     * 마퀸플러스 V3가 감지한 교차로 상태 값을 가져옵니다. (1: 사거리, 2: T자 교차로, 3: 좌회전/직진, 4: 우회전/직진)
+     * Read the currently detected intersection status code from Maqueen Plus V3.
      */
 
     //% block="Intersection Detection"
@@ -921,8 +959,9 @@ namespace maqueenPlusV2 {
     }
 
     /**
-     * Get the light intensity
-     * @param type to type ,eg: DirectionType.Left
+     * 마퀸플러스 V3의 좌/우 조도(빛) 센서의 아날로그 값을 읽어옵니다. (0 ~ 1023)
+     * Read the analog value (0 - 1023) from the Left or Right light sensor of Maqueen Plus V3.
+     * @param type Sensor side (Left/Right)
      */
 
     //% block="Read Light Values %type"
@@ -940,12 +979,11 @@ namespace maqueenPlusV2 {
     }
 
     /**
-     * Set the distance controlled by PID.
-     * @param dir to dir ,eg: SpeedDirection.SpeedCW
-     * 
-     * @param distance to distance ,eg: 50
-     * @param interruption tot onderbreking
-     * 
+     * 마퀸플러스 V3의 모터 인코더 피드백과 PID를 이용하여 설정한 거리(cm)만큼 정확하게 이동합니다.
+     * Move the robot a specified distance in cm using PID control and encoder feedback.
+     * @param dir Direction (CW: Forward, CCW: Backward)
+     * @param distance Distance in centimeters
+     * @param interruption Interruption permission
      */
 
     //% block="PID Distance Control %dir  distance %distance cm   %interruption  interruption"
@@ -981,10 +1019,10 @@ namespace maqueenPlusV2 {
     }
 
     /**
-     * Set the control angle of PID.
-     * 
-     * @param angle to angle ,eg: 90
-     * @param interruption
+     * 마퀸플러스 V3의 모터 인코더 피드백과 PID를 이용하여 설정한 각도(도)만큼 제자리에서 정밀하게 회전합니다.
+     * Turn the robot a specified angle using PID control and encoder feedback.
+     * @param angle Rotation angle in degrees (-180 to 180)
+     * @param interruption Interruption permission
      */
 
     //% block="PID Angle Control speed  angle %angle %interruption  interruption"
@@ -1021,7 +1059,8 @@ namespace maqueenPlusV2 {
 
     }
     /**
-     * Set the PID (Proportional-Integral-Derivative)
+     * 진행 중인 PID 정밀 제어 주행 및 회전을 즉시 중지합니다.
+     * Stop any currently running PID distance or angle control movements.
      */
 
     //% block="PID Control Stop"
@@ -1036,8 +1075,9 @@ namespace maqueenPlusV2 {
     }
 
     /**
-     * Gets the real-time speed in cm/s
-     * @param type to type ,eg: DirectionType.Left
+     * 좌/우 바퀴의 실제 실시간 주행 속도(cm/s)를 측정하여 가져옵니다.
+     * Read the real-time speed of the left or right wheel in cm/s.
+     * @param type Wheel side (Left/Right)
      */
 
     //% block="Read Real-time Speed %type wheel"
@@ -1055,9 +1095,10 @@ namespace maqueenPlusV2 {
     }
 
     /**
-     * Set the color of the vehicle lights.
-     * @param type to type ,eg: DirectionType.Left
-     * @param rgb to rgb ,eg: CarLightColors.Red
+     * 마퀸플러스 V3 하단 섀시에 탑재된 전면 RGB 헤드라이트의 단색을 지정합니다. (V3 전용)
+     * Set the solid color of the Left, Right, or All front RGB headlights of Maqueen Plus V3.
+     * @param type Light side (Left/Right/All)
+     * @param rgb Selected car light color
      */
 
     //% block="RGB Car Lights %type color %rgb"

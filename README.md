@@ -34,10 +34,15 @@ This library supports both Maqueen Plus V2 and V3. Below is a comparison of thei
 This customized version expands the original library with more color choices and rich LED animations.  
 본 커스텀 버전에 새롭게 추가/확장된 색상 및 백그라운드 LED 애니메이션 블록 정보입니다.
 
-### 1. Expanded RGB Color Palette (확장된 RGB 색상표)
-We added **13 new vibrant colors** to the NeoPixel RGB color list. You can choose these colors in any NeoPixel blocks:
-NeoPixel RGB 색상 선택 상자에 아래 **13가지의 다채로운 색상**이 추가되었습니다:
-* `Pink` (분홍), `Magenta` (자홍), `Cyan` (청록), `Gold` (금색), `Lavender` (라벤더), `Mint` (민트), `SkyBlue` (하늘색), `OrangeRed` (다홍색), `LimeGreen` (라임색), `Teal` (진청록), `Turquoise` (터쿼이즈), `HotPink` (핫핑크), `DeepPurple` (진보라)
+### 1. Expanded RGB Color Palette & Onboard RGB Control (확장된 RGB 색상 및 편리한 온보드 RGB 제어)
+* **Expanded Colors (색상 확장)**: We added **13 new vibrant colors** to the NeoPixel RGB color list. (NeoPixel RGB 색상 선택 상자에 아래 **13가지의 다채로운 색상**이 추가되었습니다):
+  * `Pink` (분홍), `Magenta` (자홍), `Cyan` (청록), `Gold` (금색), `Lavender` (라벤더), `Mint` (민트), `SkyBlue` (하늘색), `OrangeRed` (다홍색), `LimeGreen` (라임색), `Teal` (진청록), `Turquoise` (터쿼이즈), `HotPink` (핫핑크), `DeepPurple` (진보라)
+* **Easy Onboard LED Selection (편리한 온보드 LED 개별 제어)**: Added a beginner-friendly dropdown block to control each of the 4 onboard NeoPixel RGB LEDs or all at once without typing numbers (숫자 입력 없이 4개의 온보드 NeoPixel LED를 각각 또는 전체로 선택할 수 있는 드롭다운 블록이 새롭게 추가되었습니다):
+  * Block: `SET PIN %pin onboard RGB LED %index show color %rgb`
+  * Dropdown options: `1 (Left Front)` (앞쪽 왼쪽), `2 (Left Rear)` (뒤쪽 왼쪽), `3 (Right Rear)` (뒤쪽 오른쪽), `4 (Right Front)` (앞쪽 오른쪽), `All` (전체)
+  ```blocks
+  maqueenPlusV2.setOnboardRGB(DigitalPin.P15, maqueenPlusV2.NeoPixelIndex.LED1, maqueenPlusV2.NeoPixelColors.Pink)
+  ```
 
 ### 2. New Background LED Animation Blocks (새로운 LED 애니메이션 블록)
 These animations run asynchronously in the background so they won't block other robot movements or sensor checks:
