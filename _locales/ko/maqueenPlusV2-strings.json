@@ -105,5 +105,11 @@
     "maqueenPlusV2.startSiren|block": "RGB 핀 %pin | 색상1 %color1=neopixel_colors 색상2 %color2=neopixel_colors 간격 %interval ms로 사이렌 효과 시작",
     "maqueenPlusV2.startBlinker|block": "RGB 핀 %pin | %type 깜빡이 색상 %color=neopixel_colors 간격 %interval ms로 깜빡이기 시작",
     "maqueenPlusV2.startBreathing|block": "RGB 핀 %pin | 색상 %color=neopixel_colors 속도 %speed로 숨쉬기 효과 시작",
-    "{id:group}Effects": "효과"
+    "{id:group}Setup": "기본 설정",
+    "{id:group}Motor": "모터 제어",
+    "{id:group}LED": "LED 제어",
+    "{id:group}Sensors": "센서 감지",
+    "{id:group}NeoPixel": "네오픽셀 RGB",
+    "{id:group}V3": "V3 전용 기능",
+    "{id:group}Effects": "애니메이션 효과"
 }

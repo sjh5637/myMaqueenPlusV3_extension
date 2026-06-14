@@ -16,7 +16,7 @@ const enum PatrolSpeed {
  * Custom graphic block
  */
 //% weight=100 color=#0fbc11 icon="\uf067" block="MaqueenPlusV2&V3"
-//% groups="['V3', 'Effects']"
+//% groups="['Setup', 'Motor', 'LED', 'Sensors', 'NeoPixel', 'V3', 'Effects']"
 namespace maqueenPlusV2 {
 
     //Motor selection enumeration
@@ -174,7 +174,8 @@ namespace maqueenPlusV2 {
      */
 
     //% weight=100
-    //%block="initialize via I2C until success"
+    //% block="initialize via I2C until success"
+    //% group="Setup"
     export function I2CInit(): void {
         let Version_v = 0;
         //V3 systemReset
@@ -220,6 +221,7 @@ namespace maqueenPlusV2 {
     //% block="set %emotor direction %edir speed %speed"
     //% speed.min=0 speed.max=255
     //% weight=99
+    //% group="Motor"
     export function controlMotor(emotor:MyEnumMotor, edir:MyEnumDir, speed:number):void{
         switch(emotor){
             case MyEnumMotor.LeftMotor:
@@ -255,6 +257,7 @@ namespace maqueenPlusV2 {
 
     //% block="set %emotor stop"
     //% weight=98
+    //% group="Motor"
     export function controlMotorStop(emotor:MyEnumMotor):void{
         switch (emotor) {
             case MyEnumMotor.LeftMotor:
@@ -291,6 +294,7 @@ namespace maqueenPlusV2 {
 
     //% block="control %eled %eSwitch"
     //% weight=97
+    //% group="LED"
     export function controlLED(eled:MyEnumLed, eSwitch:MyEnumSwitch):void{
         switch(eled){
             case MyEnumLed.LeftLed:
@@ -322,6 +326,7 @@ namespace maqueenPlusV2 {
 
     //% block="read line sensor %eline state"
     //% weight=96
+    //% group="Sensors"
     export function readLineSensorState(eline:MyEnumLineSensor):number{
         pins.i2cWriteNumber(I2CADDR, LINE_STATE_REGISTER, NumberFormat.Int8LE);
         let data = pins.i2cReadNumber(I2CADDR, NumberFormat.Int8LE)
@@ -353,6 +358,7 @@ namespace maqueenPlusV2 {
 
     //% block="read line sensor %eline  ADC data"
     //% weight=95
+    //% group="Sensors"
     export function readLineSensorData(eline:MyEnumLineSensor):number{
         let data;
         switch(eline){
@@ -401,7 +407,7 @@ namespace maqueenPlusV2 {
      */
     //% block="set ultrasonic sensor TRIG pin %trig ECHO pin %echo read data unit:cm"
     //% weight=94
-
+    //% group="Sensors"
     export function readUltrasonic(trig:DigitalPin, echo:DigitalPin):number{
         let data;
         pins.digitalWritePin(trig, 1);
@@ -432,6 +438,7 @@ namespace maqueenPlusV2 {
     //% block="read version"
     //% weight=30
     //% advanced=true
+    //% group="Setup"
     export function readVersion():string{
         let version;
         pins.i2cWriteNumber(I2CADDR, VERSION_CNT_REGISTER, NumberFormat.Int8LE);
@@ -456,6 +463,7 @@ namespace maqueenPlusV2 {
     //% g.min=0 g.max=255
     //% b.min=0 b.max=255
     //% block="red|%r green|%g blue|%b"
+    //% group="NeoPixel"
     export function rgb(r: number, g: number, b: number): number {
         return (r << 16) + (g << 8) + (b);
     }
@@ -470,6 +478,7 @@ namespace maqueenPlusV2 {
     //% from.min=0 from.max=3
     //% to.min=0 to.max=3
     //% block="range from |%from with|%to leds"
+    //% group="NeoPixel"
     export function ledRange(from: number, to: number): number {
         return ((from) << 16) + (2 << 8) + (to);
     }
@@ -479,6 +488,7 @@ namespace maqueenPlusV2 {
     //% weight=2 blockGap=8
     //% blockId="neopixel_colors" block="%color"
     //% advanced=true
+    //% group="NeoPixel"
     export function colors(color: NeoPixelColors): number {
         return color;
     }
@@ -492,6 +502,7 @@ namespace maqueenPlusV2 {
     //% index.min=0 index.max=3
     //% pin.defl=DigitalPin.P15
     //% block="SET PIN|%pin RGB light |%index show color|%rgb=neopixel_colors"
+    //% group="NeoPixel"
     export function setIndexColor(pin:DigitalPin,index: number, rgb: number) {
         let f = index;
         let t = index;
@@ -529,6 +540,7 @@ namespace maqueenPlusV2 {
     //% weight=60
     //% pin.defl=DigitalPin.P15
     //% block=" SET PIN|%pin RGB show color|%rgb=neopixel_colors"
+    //% group="NeoPixel"
     export function showColor(pin:DigitalPin,rgb: number) {
         let r = (rgb >> 16) * (_brightness / 255);
         let g = ((rgb >> 8) & 0xFF) * (_brightness / 255);
@@ -552,6 +564,7 @@ namespace maqueenPlusV2 {
     //% weight=70
     //% brightness.min=0 brightness.max=255
     //% block="set RGB brightness to |%brightness"
+    //% group="NeoPixel"
     export function setBrightness(brightness: number) {
         _brightness = brightness;
     }
@@ -566,6 +579,7 @@ namespace maqueenPlusV2 {
     //% weight=40
     //% pin.defl=DigitalPin.P15
     //% block="Set pin|%pin clear all RGB"
+    //% group="NeoPixel"
     export function ledBlank(pin: DigitalPin) {
        showColor(pin,0)
     }
@@ -584,6 +598,7 @@ namespace maqueenPlusV2 {
     //% startHue.min=0 startHue.max=360
     //% endHue.min=0 endHue.max=360
     //% blockId=led_rainbow block="SET PIN|%pin set RGB show rainbow color from|%startHue to|%endHue"
+    //% group="NeoPixel"
     export function ledRainbow(pin:DigitalPin,startHue: number, endHue: number) {
         startHue = startHue >> 0;
         endHue = endHue >> 0;

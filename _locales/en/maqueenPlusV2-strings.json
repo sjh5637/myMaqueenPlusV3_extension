@@ -105,5 +105,11 @@
     "maqueenPlusV2.startSiren|block": "SET PIN|%pin start siren color1|%color1=neopixel_colors color2|%color2=neopixel_colors at interval|%interval ms",
     "maqueenPlusV2.startBlinker|block": "SET PIN|%pin start blinker|%type color|%color=neopixel_colors at interval|%interval ms",
     "maqueenPlusV2.startBreathing|block": "SET PIN|%pin start breathing color|%color=neopixel_colors speed|%speed",
+    "{id:group}Setup": "Setup",
+    "{id:group}Motor": "Motor",
+    "{id:group}LED": "LED",
+    "{id:group}Sensors": "Sensors",
+    "{id:group}NeoPixel": "NeoPixel",
+    "{id:group}V3": "V3",
     "{id:group}Effects": "Effects"
 } 
