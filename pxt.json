@@ -1,0 +1,45 @@
+{
+    "name": "maqueenPlusV2",
+    "version": "2.2.29",
+    "description": "This is the latest version of Maqueen Plus, a programming robot for STEAM education.",
+    "license": "MIT",
+    "dependencies": {
+        "core": "*",
+        "ir": "github:dfrobot/pxt-dfrobot_ir#v1.0.5",
+        "ws2812b": "github:microsoft/pxt-ws2812b#v0.1.2",
+        "matrixLidarDistance": "github:dfrobot/pxt-dfrobot_matrixlidardistancesensor#v1.1.2"
+    },
+    "files": [
+        "README.md",
+        "_locales/zh-cn/maqueenPlusV2-strings.json",
+        "_locales/zh-cn/maqueenPlusV2-jsdoc-strings.json",
+        "_locales/zh-tw/maqueenPlusV2-strings.json",
+        "_locales/zh-tw/maqueenPlusV2-jsdoc-strings.json",
+        "_locales/cs/maqueenPlusV2-strings.json",
+        "_locales/cs/maqueenPlusV2-jsdoc-strings.json",
+        "_locales/fr/maqueenPlusV2-strings.json",
+        "_locales/fr/maqueenPlusV2-jsdoc-strings.json",
+        "_locales/nl/maqueenPlusV2-strings.json",
+        "_locales/nl/maqueenPlusV2-jsdoc-strings.json",
+        "_locales/es-es/maqueenPlusV2-strings.json",
+        "_locales/es-es/maqueenPlusV2-jsdoc-strings.json",
+        "_locales/de/maqueenPlusV2-strings.json",
+        "_locales/de/maqueenPlusV2-jsdoc-strings.json",
+        "_locales/ko/maqueenPlusV2-strings.json",
+        "_locales/ko/maqueenPlusV2-jsdoc-strings.json",
+        "_locales/en/maqueenPlusV2-strings.json",
+        "_locales/en/maqueenPlusV2-jsdoc-strings.json",
+        "maqueenPlusV2.ts"
+    ],
+    "testFiles": [
+        "test.ts"
+    ],
+    "targetVersions": {
+        "target": "8.0.15",
+        "targetId": "microbit"
+    },
+    "supportedTargets": [
+        "microbit"
+    ],
+    "preferredEditor": "tsprj"
+}
