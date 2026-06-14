@@ -1261,6 +1261,231 @@ namespace maqueenPlusV2 {
         });
     }
 
+    export enum MyEmotion {
+        //% block="Happy"
+        Happy,
+        //% block="Sad"
+        Sad,
+        //% block="Angry"
+        Angry,
+        //% block="Surprised"
+        Surprised,
+        //% block="Scared"
+        Scared,
+        //% block="Sleepy"
+        Sleepy,
+        //% block="Curious"
+        Curious,
+        //% block="Excited"
+        Excited,
+        //% block="Proud"
+        Proud,
+        //% block="Confused"
+        Confused
+    }
+
+    /**
+     * Express an emotion using movements, lights, and sounds (V2 & V3 compatible)
+     * @param emotion selected emotion type
+     */
+    //% weight=5
+    //% block="express emotion %emotion"
+    //% group="Effects"
+    export function expressEmotion(emotion: MyEmotion): void {
+        stopAnimations(DigitalPin.P15);
+
+        switch (emotion) {
+            case MyEmotion.Happy:
+                music.playTone(523, 150);
+                music.playTone(659, 150);
+                music.playTone(784, 150);
+                music.playTone(1047, 250);
+                for (let i = 0; i < 3; i++) {
+                    showColor(DigitalPin.P15, NeoPixelColors.Green);
+                    controlLED(MyEnumLed.LeftLed, MyEnumSwitch.Open);
+                    controlLED(MyEnumLed.RightLed, MyEnumSwitch.Close);
+                    controlMotor(MyEnumMotor.LeftMotor, MyEnumDir.Forward, 150);
+                    controlMotor(MyEnumMotor.RightMotor, MyEnumDir.Backward, 150);
+                    basic.pause(120);
+
+                    showColor(DigitalPin.P15, NeoPixelColors.Yellow);
+                    controlLED(MyEnumLed.LeftLed, MyEnumSwitch.Close);
+                    controlLED(MyEnumLed.RightLed, MyEnumSwitch.Open);
+                    controlMotor(MyEnumMotor.LeftMotor, MyEnumDir.Backward, 150);
+                    controlMotor(MyEnumMotor.RightMotor, MyEnumDir.Forward, 150);
+                    basic.pause(120);
+                }
+                break;
+
+            case MyEmotion.Sad:
+                music.playTone(392, 300);
+                music.playTone(311, 300);
+                music.playTone(262, 500);
+                showColor(DigitalPin.P15, NeoPixelColors.Blue);
+                controlLED(MyEnumLed.AllLed, MyEnumSwitch.Close);
+                controlMotor(MyEnumMotor.AllMotor, MyEnumDir.Backward, 60);
+                basic.pause(1000);
+                controlMotorStop(MyEnumMotor.AllMotor);
+                showColor(DigitalPin.P15, 0);
+                break;
+
+            case MyEmotion.Angry:
+                music.playTone(110, 600);
+                for (let i = 0; i < 4; i++) {
+                    showColor(DigitalPin.P15, NeoPixelColors.Red);
+                    controlLED(MyEnumLed.AllLed, MyEnumSwitch.Open);
+                    controlMotor(MyEnumMotor.AllMotor, MyEnumDir.Forward, 200);
+                    basic.pause(100);
+
+                    showColor(DigitalPin.P15, 0);
+                    controlLED(MyEnumLed.AllLed, MyEnumSwitch.Close);
+                    controlMotor(MyEnumMotor.AllMotor, MyEnumDir.Backward, 200);
+                    basic.pause(100);
+                }
+                break;
+
+            case MyEmotion.Surprised:
+                music.playTone(1976, 150);
+                showColor(DigitalPin.P15, NeoPixelColors.White);
+                controlLED(MyEnumLed.AllLed, MyEnumSwitch.Open);
+                controlMotor(MyEnumMotor.AllMotor, MyEnumDir.Backward, 220);
+                basic.pause(200);
+                controlMotorStop(MyEnumMotor.AllMotor);
+                basic.pause(400);
+                showColor(DigitalPin.P15, 0);
+                controlLED(MyEnumLed.AllLed, MyEnumSwitch.Close);
+                break;
+
+            case MyEmotion.Scared:
+                for (let i = 0; i < 4; i++) {
+                    music.playTone(880, 80);
+                    music.playTone(830, 80);
+                }
+                showColor(DigitalPin.P15, NeoPixelColors.Indigo);
+                for (let i = 0; i < 6; i++) {
+                    controlLED(MyEnumLed.LeftLed, MyEnumSwitch.Open);
+                    controlLED(MyEnumLed.RightLed, MyEnumSwitch.Close);
+                    controlMotor(MyEnumMotor.LeftMotor, MyEnumDir.Forward, 60);
+                    controlMotor(MyEnumMotor.RightMotor, MyEnumDir.Backward, 60);
+                    basic.pause(80);
+
+                    controlLED(MyEnumLed.LeftLed, MyEnumSwitch.Close);
+                    controlLED(MyEnumLed.RightLed, MyEnumSwitch.Open);
+                    controlMotor(MyEnumMotor.LeftMotor, MyEnumDir.Backward, 60);
+                    controlMotor(MyEnumMotor.RightMotor, MyEnumDir.Forward, 60);
+                    basic.pause(80);
+                }
+                break;
+
+            case MyEmotion.Sleepy:
+                music.playTone(330, 400);
+                music.playTone(294, 400);
+                music.playTone(262, 800);
+                showColor(DigitalPin.P15, NeoPixelColors.Purple);
+                controlLED(MyEnumLed.AllLed, MyEnumSwitch.Open);
+                controlMotor(MyEnumMotor.AllMotor, MyEnumDir.Forward, 45);
+                basic.pause(800);
+                controlMotor(MyEnumMotor.AllMotor, MyEnumDir.Backward, 45);
+                basic.pause(800);
+                controlMotorStop(MyEnumMotor.AllMotor);
+                showColor(DigitalPin.P15, 0);
+                controlLED(MyEnumLed.AllLed, MyEnumSwitch.Close);
+                break;
+
+            case MyEmotion.Curious:
+                music.playTone(262, 200);
+                music.playTone(392, 400);
+                showColor(DigitalPin.P15, NeoPixelColors.Cyan);
+                controlLED(MyEnumLed.LeftLed, MyEnumSwitch.Open);
+                controlLED(MyEnumLed.RightLed, MyEnumSwitch.Close);
+                controlMotor(MyEnumMotor.LeftMotor, MyEnumDir.Forward, 0);
+                controlMotor(MyEnumMotor.RightMotor, MyEnumDir.Forward, 100);
+                basic.pause(450);
+
+                controlLED(MyEnumLed.LeftLed, MyEnumSwitch.Close);
+                controlLED(MyEnumLed.RightLed, MyEnumSwitch.Open);
+                controlMotor(MyEnumMotor.LeftMotor, MyEnumDir.Forward, 100);
+                controlMotor(MyEnumMotor.RightMotor, MyEnumDir.Forward, 0);
+                basic.pause(450);
+
+                controlMotorStop(MyEnumMotor.AllMotor);
+                showColor(DigitalPin.P15, 0);
+                controlLED(MyEnumLed.AllLed, MyEnumSwitch.Close);
+                break;
+
+            case MyEmotion.Excited:
+                music.playTone(523, 100);
+                music.playTone(392, 100);
+                music.playTone(523, 100);
+                music.playTone(392, 100);
+                music.playTone(523, 100);
+                music.playTone(659, 100);
+                music.playTone(784, 100);
+                music.playTone(1047, 200);
+
+                controlMotor(MyEnumMotor.LeftMotor, MyEnumDir.Forward, 160);
+                controlMotor(MyEnumMotor.RightMotor, MyEnumDir.Backward, 160);
+                for (let i = 0; i < 6; i++) {
+                    showColor(DigitalPin.P15, NeoPixelColors.Red);
+                    controlLED(MyEnumLed.LeftLed, MyEnumSwitch.Open);
+                    controlLED(MyEnumLed.RightLed, MyEnumSwitch.Close);
+                    basic.pause(150);
+
+                    showColor(DigitalPin.P15, NeoPixelColors.Blue);
+                    controlLED(MyEnumLed.LeftLed, MyEnumSwitch.Close);
+                    controlLED(MyEnumLed.RightLed, MyEnumSwitch.Open);
+                    basic.pause(150);
+                }
+                controlMotorStop(MyEnumMotor.AllMotor);
+                showColor(DigitalPin.P15, 0);
+                controlLED(MyEnumLed.AllLed, MyEnumSwitch.Close);
+                break;
+
+            case MyEmotion.Proud:
+                music.playTone(262, 150);
+                music.playTone(330, 150);
+                music.playTone(392, 150);
+                music.playTone(523, 300);
+                showColor(DigitalPin.P15, NeoPixelColors.Gold);
+                controlLED(MyEnumLed.AllLed, MyEnumSwitch.Open);
+                controlMotor(MyEnumMotor.LeftMotor, MyEnumDir.Forward, 90);
+                controlMotor(MyEnumMotor.RightMotor, MyEnumDir.Forward, 120);
+                basic.pause(1200);
+                controlMotorStop(MyEnumMotor.AllMotor);
+                showColor(DigitalPin.P15, 0);
+                controlLED(MyEnumLed.AllLed, MyEnumSwitch.Close);
+                break;
+
+            case MyEmotion.Confused:
+                music.playTone(349, 150);
+                music.playTone(311, 150);
+                music.playTone(349, 150);
+                music.playTone(294, 250);
+                showColor(DigitalPin.P15, NeoPixelColors.Magenta);
+                for (let i = 0; i < 3; i++) {
+                    controlLED(MyEnumLed.LeftLed, MyEnumSwitch.Open);
+                    controlLED(MyEnumLed.RightLed, MyEnumSwitch.Close);
+                    controlMotor(MyEnumMotor.LeftMotor, MyEnumDir.Forward, 80);
+                    controlMotor(MyEnumMotor.RightMotor, MyEnumDir.Backward, 40);
+                    basic.pause(200);
+
+                    controlLED(MyEnumLed.LeftLed, MyEnumSwitch.Close);
+                    controlLED(MyEnumLed.RightLed, MyEnumSwitch.Open);
+                    controlMotor(MyEnumMotor.LeftMotor, MyEnumDir.Backward, 40);
+                    controlMotor(MyEnumMotor.RightMotor, MyEnumDir.Forward, 80);
+                    basic.pause(200);
+                }
+                controlMotorStop(MyEnumMotor.AllMotor);
+                showColor(DigitalPin.P15, 0);
+                controlLED(MyEnumLed.AllLed, MyEnumSwitch.Close);
+                break;
+        }
+
+        controlMotorStop(MyEnumMotor.AllMotor);
+        showColor(DigitalPin.P15, 0);
+        controlLED(MyEnumLed.AllLed, MyEnumSwitch.Close);
+    }
+
 }
 
 

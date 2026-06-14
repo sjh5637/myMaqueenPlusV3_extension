@@ -76,6 +76,13 @@ These animations run asynchronously in the background so they won't block other 
   maqueenPlusV2.stopAnimations(DigitalPin.P15)
   ```
 
+* **Emotion Expressions Motion Presets (감정 표현 모션 실행하기)**
+  * Runs one of 10 preset emotional expression motions combining movements, headlights, NeoPixels, and buzzer melodies.
+  * 모터 주행, 전면 LED, 차체 네오픽셀, 부저 멜로디를 조합한 10가지 감정 표현 모션 중 하나를 골라 실행합니다.
+  ```blocks
+  maqueenPlusV2.expressEmotion(maqueenPlusV2.MyEmotion.Happy)
+  ```
+
 ### 3. Organized Toolbox Subcategories (정리된 툴박스 그룹 분류)
 To make programming easier and the toolbox cleaner, all blocks are now organized into labeled subcategories (groups) inside MakeCode:
 블록들을 더 쉽게 찾고 툴박스를 깔끔하게 정돈할 수 있도록, 마퀸플러스의 모든 블록이 다음과 같이 그룹별로 세션이 나누어 분류되었습니다:

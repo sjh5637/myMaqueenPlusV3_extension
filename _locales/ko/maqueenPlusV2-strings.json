@@ -117,5 +117,16 @@
     "maqueenPlusV2.NeoPixelIndex.LED3|block": "3 (뒤쪽 오른쪽)",
     "maqueenPlusV2.NeoPixelIndex.LED4|block": "4 (앞쪽 오른쪽)",
     "maqueenPlusV2.NeoPixelIndex.All|block": "전체",
-    "maqueenPlusV2.setOnboardRGB|block": "RGB LED 핀%pin | 온보드 %index 색상 %rgb=neopixel_colors 표시"
+    "maqueenPlusV2.setOnboardRGB|block": "RGB LED 핀%pin | 온보드 %index 색상 %rgb=neopixel_colors 표시",
+    "maqueenPlusV2.MyEmotion.Happy|block": "기쁨",
+    "maqueenPlusV2.MyEmotion.Sad|block": "슬픔",
+    "maqueenPlusV2.MyEmotion.Angry|block": "화남",
+    "maqueenPlusV2.MyEmotion.Surprised|block": "놀람",
+    "maqueenPlusV2.MyEmotion.Scared|block": "두려움",
+    "maqueenPlusV2.MyEmotion.Sleepy|block": "졸림",
+    "maqueenPlusV2.MyEmotion.Curious|block": "호기심",
+    "maqueenPlusV2.MyEmotion.Excited|block": "신남",
+    "maqueenPlusV2.MyEmotion.Proud|block": "당당함",
+    "maqueenPlusV2.MyEmotion.Confused|block": "어리둥절",
+    "maqueenPlusV2.expressEmotion|block": "감정 표현 모션 %emotion 실행하기"
 }

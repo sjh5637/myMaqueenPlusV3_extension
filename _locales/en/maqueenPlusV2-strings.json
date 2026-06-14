@@ -117,5 +117,16 @@
     "maqueenPlusV2.NeoPixelIndex.LED3|block": "3 (Right Rear)",
     "maqueenPlusV2.NeoPixelIndex.LED4|block": "4 (Right Front)",
     "maqueenPlusV2.NeoPixelIndex.All|block": "All",
-    "maqueenPlusV2.setOnboardRGB|block": "SET PIN|%pin onboard RGB LED|%index show color|%rgb=neopixel_colors"
+    "maqueenPlusV2.setOnboardRGB|block": "SET PIN|%pin onboard RGB LED|%index show color|%rgb=neopixel_colors",
+    "maqueenPlusV2.MyEmotion.Happy|block": "Happy",
+    "maqueenPlusV2.MyEmotion.Sad|block": "Sad",
+    "maqueenPlusV2.MyEmotion.Angry|block": "Angry",
+    "maqueenPlusV2.MyEmotion.Surprised|block": "Surprised",
+    "maqueenPlusV2.MyEmotion.Scared|block": "Scared",
+    "maqueenPlusV2.MyEmotion.Sleepy|block": "Sleepy",
+    "maqueenPlusV2.MyEmotion.Curious|block": "Curious",
+    "maqueenPlusV2.MyEmotion.Excited|block": "Excited",
+    "maqueenPlusV2.MyEmotion.Proud|block": "Proud",
+    "maqueenPlusV2.MyEmotion.Confused|block": "Confused",
+    "maqueenPlusV2.expressEmotion|block": "express emotion %emotion"
 } 

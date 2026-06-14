@@ -32,5 +32,6 @@
     "maqueenPlusV2.stopAnimations": "실행 중인 모든 백그라운드 LED 효과 애니메이션을 즉시 중지하고 불을 끕니다.",
     "maqueenPlusV2.startSiren": "원하는 두 가지 색상을 교차하며 깜빡이는 사이렌 조명 애니메이션을 백그라운드로 구동합니다.",
     "maqueenPlusV2.startBlinker": "좌측/우측/전체 깜빡이를 지정한 색상과 시간 간격(ms)으로 백그라운드로 구동합니다.",
-    "maqueenPlusV2.startBreathing": "지정한 색상의 밝기가 서서히 변하는 숨쉬기 조명 애니메이션을 백그라운드로 구동합니다."
+    "maqueenPlusV2.startBreathing": "지정한 색상의 밝기가 서서히 변하는 숨쉬기 조명 애니메이션을 백그라운드로 구동합니다.",
+    "maqueenPlusV2.expressEmotion": "모터 주행, 전면 LED, 섀시 RGB 네오픽셀, 부저 소리를 조합한 감정 표현 모션(10가지)을 실행합니다."
 }
