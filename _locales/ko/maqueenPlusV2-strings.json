@@ -87,5 +87,22 @@
     "maqueenPlusV2.MyInterruption.Allowed|block": "허용",
     "maqueenPlusV2.MyInterruption.NotAllowed|block": "허용 안함",
     "maqueenPlusV2|block": "마퀸플러스 V2&V3",
-    "{id:category}maqueenPlusV2": "마퀸플러스 V2&V3"
+    "{id:category}maqueenPlusV2": "마퀸플러스 V2&V3",
+    "maqueenPlusV2.NeoPixelColors.Pink|block": "분홍",
+    "maqueenPlusV2.NeoPixelColors.Magenta|block": "자홍",
+    "maqueenPlusV2.NeoPixelColors.Cyan|block": "청록",
+    "maqueenPlusV2.NeoPixelColors.Gold|block": "금색",
+    "maqueenPlusV2.NeoPixelColors.Lavender|block": "라벤더",
+    "maqueenPlusV2.NeoPixelColors.Mint|block": "민트",
+    "maqueenPlusV2.NeoPixelColors.SkyBlue|block": "하늘색",
+    "maqueenPlusV2.NeoPixelColors.OrangeRed|block": "다홍색",
+    "maqueenPlusV2.NeoPixelColors.LimeGreen|block": "라임색",
+    "maqueenPlusV2.NeoPixelColors.Teal|block": "진청록",
+    "maqueenPlusV2.NeoPixelColors.Turquoise|block": "터쿼이즈",
+    "maqueenPlusV2.NeoPixelColors.HotPink|block": "핫핑크",
+    "maqueenPlusV2.NeoPixelColors.DeepPurple|block": "진보라",
+    "maqueenPlusV2.stopAnimations|block": "RGB 핀 %pin 모든 애니메이션 중지",
+    "maqueenPlusV2.startSiren|block": "RGB 핀 %pin | 색상1 %color1=neopixel_colors 색상2 %color2=neopixel_colors 간격 %interval ms로 사이렌 효과 시작",
+    "maqueenPlusV2.startBlinker|block": "RGB 핀 %pin | %type 깜빡이 색상 %color=neopixel_colors 간격 %interval ms로 깜빡이기 시작",
+    "maqueenPlusV2.startBreathing|block": "RGB 핀 %pin | 색상 %color=neopixel_colors 속도 %speed로 숨쉬기 효과 시작"
 }

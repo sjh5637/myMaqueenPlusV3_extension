@@ -87,5 +87,22 @@
     "maqueenPlusV2.MyInterruption.Allowed|block": "Allowed",
     "maqueenPlusV2.MyInterruption.NotAllowed|block": "Not allowed",
     "maqueenPlusV2|block": "Maqueen Plus V2&V3",
-    "{id:category}maqueenPlusV2": "Maqueen Plus V2&V3"
+    "{id:category}maqueenPlusV2": "Maqueen Plus V2&V3",
+    "maqueenPlusV2.NeoPixelColors.Pink|block": "Pink",
+    "maqueenPlusV2.NeoPixelColors.Magenta|block": "Magenta",
+    "maqueenPlusV2.NeoPixelColors.Cyan|block": "Cyan",
+    "maqueenPlusV2.NeoPixelColors.Gold|block": "Gold",
+    "maqueenPlusV2.NeoPixelColors.Lavender|block": "Lavender",
+    "maqueenPlusV2.NeoPixelColors.Mint|block": "Mint",
+    "maqueenPlusV2.NeoPixelColors.SkyBlue|block": "Sky Blue",
+    "maqueenPlusV2.NeoPixelColors.OrangeRed|block": "Orange Red",
+    "maqueenPlusV2.NeoPixelColors.LimeGreen|block": "Lime Green",
+    "maqueenPlusV2.NeoPixelColors.Teal|block": "Teal",
+    "maqueenPlusV2.NeoPixelColors.Turquoise|block": "Turquoise",
+    "maqueenPlusV2.NeoPixelColors.HotPink|block": "Hot Pink",
+    "maqueenPlusV2.NeoPixelColors.DeepPurple|block": "Deep Purple",
+    "maqueenPlusV2.stopAnimations|block": "SET PIN|%pin stop all animations",
+    "maqueenPlusV2.startSiren|block": "SET PIN|%pin start siren color1|%color1=neopixel_colors color2|%color2=neopixel_colors at interval|%interval ms",
+    "maqueenPlusV2.startBlinker|block": "SET PIN|%pin start blinker|%type color|%color=neopixel_colors at interval|%interval ms",
+    "maqueenPlusV2.startBreathing|block": "SET PIN|%pin start breathing color|%color=neopixel_colors speed|%speed"
 } 

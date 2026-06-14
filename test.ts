@@ -1,24 +1,21 @@
 maqueenPlusV2.I2CInit()
 maqueenPlusV2.setBrightness(100)
-basic.forever(function () {
-    serial.writeLine("Turn on the left light, motor forward, RGB light red")
-    maqueenPlusV2.setIndexColor(DigitalPin.P15,maqueenPlusV2.ledRange(1, 4), maqueenPlusV2.NeoPixelColors.Red)
-    maqueenPlusV2.controlMotor(maqueenPlusV2.MyEnumMotor.AllMotor, maqueenPlusV2.MyEnumDir.Forward, 100)
-    maqueenPlusV2.controlLED(maqueenPlusV2.MyEnumLed.LeftLed, maqueenPlusV2.MyEnumSwitch.Open)
-    basic.pause(2000)
-    serial.writeLine("Turn on the right side light, motor back, RGB light yellow")
-    maqueenPlusV2.setIndexColor(DigitalPin.P15,maqueenPlusV2.ledRange(1, 4), maqueenPlusV2.NeoPixelColors.Yellow)
-    maqueenPlusV2.controlMotor(maqueenPlusV2.MyEnumMotor.AllMotor, maqueenPlusV2.MyEnumDir.Backward, 100)
-    maqueenPlusV2.controlLED(maqueenPlusV2.MyEnumLed.LeftLed, maqueenPlusV2.MyEnumSwitch.Close)
-    maqueenPlusV2.controlLED(maqueenPlusV2.MyEnumLed.RightLed, maqueenPlusV2.MyEnumSwitch.Open)
-    basic.pause(2000)
-    serial.writeLine("Turn on the side lights, motor forward, RGB light green")
-    maqueenPlusV2.controlMotor(maqueenPlusV2.MyEnumMotor.AllMotor, maqueenPlusV2.MyEnumDir.Forward, 100)
-    maqueenPlusV2.controlLED(maqueenPlusV2.MyEnumLed.AllLed, maqueenPlusV2.MyEnumSwitch.Open)
-    maqueenPlusV2.setIndexColor(DigitalPin.P15,maqueenPlusV2.ledRange(1, 4), maqueenPlusV2.NeoPixelColors.Green)
-    basic.pause(2000)
-    serial.writeLine("Printing sensor data")
-    serial.writeLine("SensorL1 status:" + maqueenPlusV2.readLineSensorState(maqueenPlusV2.MyEnumLineSensor.SensorL1))
-    serial.writeLine("SensorL1 ADC:" + maqueenPlusV2.readLineSensorData(maqueenPlusV2.MyEnumLineSensor.SensorL1))
-    serial.writeLine("ultrasonic sensor:" + maqueenPlusV2.readUltrasonic(DigitalPin.P13, DigitalPin.P14))
-})
+
+// 1. Test Siren animation with custom colors: Pink (분홍) and Cyan (청록)
+serial.writeLine("Starting Siren animation (Pink & Cyan)")
+maqueenPlusV2.startSiren(DigitalPin.P15, maqueenPlusV2.NeoPixelColors.Pink, maqueenPlusV2.NeoPixelColors.Cyan, 200)
+basic.pause(5000)
+
+// 2. Test Blinker animation (Hazard) with Gold (금색) color
+serial.writeLine("Starting Hazard Blinker (Gold)")
+maqueenPlusV2.startBlinker(DigitalPin.P15, maqueenPlusV2.DirectionType.All, maqueenPlusV2.NeoPixelColors.Gold, 300)
+basic.pause(5000)
+
+// 3. Test Breathing animation with Lavender (라벤더) color
+serial.writeLine("Starting Breathing effect (Lavender)")
+maqueenPlusV2.startBreathing(DigitalPin.P15, maqueenPlusV2.NeoPixelColors.Lavender, 4)
+basic.pause(5000)
+
+// 4. Stop all animations
+serial.writeLine("Stopping all animations")
+maqueenPlusV2.stopAnimations(DigitalPin.P15)

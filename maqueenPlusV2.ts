@@ -99,7 +99,33 @@ namespace maqueenPlusV2 {
         //% block=white
         White = 0xFFFFFF,
         //% block=black
-        Black = 0x000000
+        Black = 0x000000,
+        //% block=pink
+        Pink = 0xFFC0CB,
+        //% block=magenta
+        Magenta = 0xFF00FF,
+        //% block=cyan
+        Cyan = 0x00FFFF,
+        //% block=gold
+        Gold = 0xFFD700,
+        //% block=lavender
+        Lavender = 0xE6E6FA,
+        //% block=mint
+        Mint = 0x3EB489,
+        //% block=skyblue
+        SkyBlue = 0x87CEEB,
+        //% block=orangered
+        OrangeRed = 0xFF4500,
+        //% block=limegreen
+        LimeGreen = 0x32CD32,
+        //% block=teal
+        Teal = 0x008080,
+        //% block=turquoise
+        Turquoise = 0x40E0D0,
+        //% block=hotpink
+        HotPink = 0xFF69B4,
+        //% block=deeppurple
+        DeepPurple = 0x6000FF
     }
     
     export enum CarLightColors {
@@ -1038,6 +1064,141 @@ namespace maqueenPlusV2 {
             allBuffer[0] = 12;
             pins.i2cWriteBuffer(I2CADDR, allBuffer)
         }
+    }
+
+    let activeAnimationId = 0;
+
+    /**
+     * Stop all running LED animations
+     * @param pin pin to control the leds
+     */
+    //% weight=9 block="SET PIN|%pin stop all animations"
+    //% pin.defl=DigitalPin.P15
+    export function stopAnimations(pin: DigitalPin) {
+        activeAnimationId++;
+        // Turn off all RGBs
+        showColor(pin, 0);
+        // Turn off front LEDs
+        controlLED(MyEnumLed.AllLed, MyEnumSwitch.Close);
+    }
+
+    /**
+     * Start a custom police siren animation
+     * @param pin pin to control the leds
+     * @param color1 first color
+     * @param color2 second color
+     * @param interval interval in milliseconds
+     */
+    //% weight=8
+    //% pin.defl=DigitalPin.P15
+    //% interval.defl=200
+    //% block="SET PIN|%pin start siren color1|%color1=neopixel_colors color2|%color2=neopixel_colors at interval|%interval ms"
+    export function startSiren(pin: DigitalPin, color1: number, color2: number, interval: number) {
+        activeAnimationId++;
+        let animId = activeAnimationId;
+        control.inBackground(function () {
+            let state = false;
+            while (animId === activeAnimationId) {
+                state = !state;
+                if (state) {
+                    setIndexColor(pin, 0, color1);
+                    setIndexColor(pin, 1, color1);
+                    setIndexColor(pin, 2, color2);
+                    setIndexColor(pin, 3, color2);
+                    controlLED(MyEnumLed.LeftLed, MyEnumSwitch.Open);
+                    controlLED(MyEnumLed.RightLed, MyEnumSwitch.Close);
+                } else {
+                    setIndexColor(pin, 0, color2);
+                    setIndexColor(pin, 1, color2);
+                    setIndexColor(pin, 2, color1);
+                    setIndexColor(pin, 3, color1);
+                    controlLED(MyEnumLed.LeftLed, MyEnumSwitch.Close);
+                    controlLED(MyEnumLed.RightLed, MyEnumSwitch.Open);
+                }
+                basic.pause(interval);
+            }
+        });
+    }
+
+    /**
+     * Start directional blinkers/hazard lights animation
+     * @param pin pin to control the leds
+     * @param type direction type
+     * @param color color to blink
+     * @param interval interval in milliseconds
+     */
+    //% weight=7
+    //% pin.defl=DigitalPin.P15
+    //% interval.defl=500
+    //% block="SET PIN|%pin start blinker|%type color|%color=neopixel_colors at interval|%interval ms"
+    export function startBlinker(pin: DigitalPin, type: DirectionType, color: number, interval: number) {
+        activeAnimationId++;
+        let animId = activeAnimationId;
+        control.inBackground(function () {
+            let state = false;
+            while (animId === activeAnimationId) {
+                state = !state;
+                if (state) {
+                    if (type === DirectionType.Left) {
+                        setIndexColor(pin, 0, color);
+                        setIndexColor(pin, 1, color);
+                        controlLED(MyEnumLed.LeftLed, MyEnumSwitch.Open);
+                    } else if (type === DirectionType.Right) {
+                        setIndexColor(pin, 2, color);
+                        setIndexColor(pin, 3, color);
+                        controlLED(MyEnumLed.RightLed, MyEnumSwitch.Open);
+                    } else {
+                        showColor(pin, color);
+                        controlLED(MyEnumLed.AllLed, MyEnumSwitch.Open);
+                    }
+                } else {
+                    showColor(pin, 0);
+                    controlLED(MyEnumLed.AllLed, MyEnumSwitch.Close);
+                }
+                basic.pause(interval);
+            }
+        });
+    }
+
+    /**
+     * Start breathing LED light effect
+     * @param pin pin to control the leds
+     * @param color breathing color
+     * @param speed speed of breathing (1-5)
+     */
+    //% weight=6
+    //% pin.defl=DigitalPin.P15
+    //% speed.min=1 speed.max=5 speed.defl=3
+    //% block="SET PIN|%pin start breathing color|%color=neopixel_colors speed|%speed"
+    export function startBreathing(pin: DigitalPin, color: number, speed: number) {
+        activeAnimationId++;
+        let animId = activeAnimationId;
+        let pauseTime = (6 - speed) * 5;
+        let r = (color >> 16) & 0xFF;
+        let g = (color >> 8) & 0xFF;
+        let b = color & 0xFF;
+
+        control.inBackground(function () {
+            let step = 5;
+            let currentBrightness = 0;
+            let direction = 1;
+            while (animId === activeAnimationId) {
+                currentBrightness += direction * step;
+                if (currentBrightness >= 255) {
+                    currentBrightness = 255;
+                    direction = -1;
+                } else if (currentBrightness <= 0) {
+                    currentBrightness = 0;
+                    direction = 1;
+                }
+                let scaledR = (r * currentBrightness) / 255;
+                let scaledG = (g * currentBrightness) / 255;
+                let scaledB = (b * currentBrightness) / 255;
+                let scaledColor = (scaledR << 16) + (scaledG << 8) + scaledB;
+                showColor(pin, scaledColor);
+                basic.pause(pauseTime);
+            }
+        });
     }
 
 }
