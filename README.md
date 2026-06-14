@@ -55,6 +55,17 @@ These animations run asynchronously in the background so they won't block other 
   maqueenPlusV2.stopAnimations(DigitalPin.P15)
   ```
 
+### 3. Organized Toolbox Subcategories (정리된 툴박스 그룹 분류)
+To make programming easier and the toolbox cleaner, all blocks are now organized into labeled subcategories (groups) inside MakeCode:
+블록들을 더 쉽게 찾고 툴박스를 깔끔하게 정돈할 수 있도록, 마퀸플러스의 모든 블록이 다음과 같이 그룹별로 세션이 나누어 분류되었습니다:
+* **Setup (기본 설정)**: Initialization and version checking blocks. / 초기화 및 버전 확인 블록
+* **Motor (모터 제어)**: Movement and motor speed/direction controls. / 주행 방향 및 속도 제어 블록
+* **LED (LED 제어)**: Front left/right headlight switches. / 앞면 LED 헤드라이트 제어 블록
+* **Sensors (센서 감지)**: Line-tracking digital/ADC states and ultrasonic sensors. / 라인 센서 및 초음파 감지 블록
+* **NeoPixel (네오픽셀 RGB)**: Custom colors, brightness, ranges, and rainbow animations. / Neopixel 제어 및 색상 설정 블록
+* **V3 (V3 전용 기능)**: Underglow, PID, encoders, crossroads/T-junction modes for V3. / V3 메인보드 전용 고급 정밀 제어 블록
+* **Effects (애니메이션 효과)**: Newly added custom siren, blinker, and breathing animation controls. / 새롭게 추가된 백그라운드 효과 연출 블록
+
 ## Basic usage
 
 * forward
