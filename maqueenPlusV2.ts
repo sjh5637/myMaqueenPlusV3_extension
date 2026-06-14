@@ -16,7 +16,7 @@ const enum PatrolSpeed {
  * Custom graphic block
  */
 //% weight=100 color=#0fbc11 icon="\uf067" block="MaqueenPlusV2&V3"
-//% groups="['V3']"
+//% groups="['V3', 'Effects']"
 namespace maqueenPlusV2 {
 
     //Motor selection enumeration
@@ -1074,6 +1074,7 @@ namespace maqueenPlusV2 {
      */
     //% weight=9 block="SET PIN|%pin stop all animations"
     //% pin.defl=DigitalPin.P15
+    //% group="Effects"
     export function stopAnimations(pin: DigitalPin) {
         activeAnimationId++;
         // Turn off all RGBs
@@ -1092,6 +1093,7 @@ namespace maqueenPlusV2 {
     //% weight=8
     //% pin.defl=DigitalPin.P15
     //% interval.defl=200
+    //% group="Effects"
     //% block="SET PIN|%pin start siren color1|%color1=neopixel_colors color2|%color2=neopixel_colors at interval|%interval ms"
     export function startSiren(pin: DigitalPin, color1: number, color2: number, interval: number) {
         activeAnimationId++;
@@ -1130,6 +1132,7 @@ namespace maqueenPlusV2 {
     //% weight=7
     //% pin.defl=DigitalPin.P15
     //% interval.defl=500
+    //% group="Effects"
     //% block="SET PIN|%pin start blinker|%type color|%color=neopixel_colors at interval|%interval ms"
     export function startBlinker(pin: DigitalPin, type: DirectionType, color: number, interval: number) {
         activeAnimationId++;
@@ -1169,6 +1172,7 @@ namespace maqueenPlusV2 {
     //% weight=6
     //% pin.defl=DigitalPin.P15
     //% speed.min=1 speed.max=5 speed.defl=3
+    //% group="Effects"
     //% block="SET PIN|%pin start breathing color|%color=neopixel_colors speed|%speed"
     export function startBreathing(pin: DigitalPin, color: number, speed: number) {
         activeAnimationId++;

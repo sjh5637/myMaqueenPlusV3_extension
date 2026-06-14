@@ -104,5 +104,6 @@
     "maqueenPlusV2.stopAnimations|block": "RGB 핀 %pin 모든 애니메이션 중지",
     "maqueenPlusV2.startSiren|block": "RGB 핀 %pin | 색상1 %color1=neopixel_colors 색상2 %color2=neopixel_colors 간격 %interval ms로 사이렌 효과 시작",
     "maqueenPlusV2.startBlinker|block": "RGB 핀 %pin | %type 깜빡이 색상 %color=neopixel_colors 간격 %interval ms로 깜빡이기 시작",
-    "maqueenPlusV2.startBreathing|block": "RGB 핀 %pin | 색상 %color=neopixel_colors 속도 %speed로 숨쉬기 효과 시작"
+    "maqueenPlusV2.startBreathing|block": "RGB 핀 %pin | 색상 %color=neopixel_colors 속도 %speed로 숨쉬기 효과 시작",
+    "{id:group}Effects": "효과"
 }
