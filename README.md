@@ -13,6 +13,22 @@ This is the latest version of Maqueen Plus, a programming robot for STEAM educat
 
 [Tutorial Links](https://wiki.dfrobot.com/SKU_MBT0021-EN_Maqueen_Plus_STEAM_Programming_Educational_Robot#target_0)
 
+## 🤖 Hardware Comparison (Maqueen Plus V2 vs V3 하드웨어 비교)
+
+This library supports both Maqueen Plus V2 and V3. Below is a comparison of their hardware specifications. Please note that several advanced blocks (such as Matrix LiDAR, Light sensors, Encoders, and PID controls) are **V3-exclusive (V3 전용)**:
+
+본 라이브러리는 마퀸플러스 V2 및 V3를 모두 지원합니다. 아래는 두 모델의 하드웨어 비교표이며, **매트릭스 라이다(LiDAR), 조도 센서, 모터 엔코더 및 PID 제어** 등의 블록은 **V3 모델에서만 작동하는 V3 전용 기능**입니다:
+
+| Feature (기능) | Maqueen Plus V2 | Maqueen Plus V3 | Note (비고) |
+| :--- | :--- | :--- | :--- |
+| **Ultrasonic Distance / LiDAR** | Basic Ultrasonic (초음파 센서) | **Matrix LiDAR (매트릭스 라이다)** | **V3 전용** (ToF 레이저 거리 측정) |
+| **Car Headlights** | Monochromatic LED ×2 | **RGB LED Lights ×2** | **V3 전용** (차량 헤드라이트 색상 가변) |
+| **Light Sensor (조도 센서)** | × | **✔ (Left/Right ×2)** | **V3 전용** (주변 밝기 감지 0~1023) |
+| **Motor Encoder & PID** | × | **✔ (Encoders ×2 & PID Control)** | **V3 전용** (정밀 거리/각도 제어 가능) |
+| **Line-tracking Processing** | Software-based (마이크로비트) | **Hardware built-in (칩 자체 연산)** | **V3 전용** (자율 교차로 판단 및 주행) |
+| **Motor Interface** | Fixed (일체형) | **Detachable (탈착식 N20 모터)** | V3 하드웨어 개선 |
+| **Unihiker K10 Support** | × | **✔ Supported** | V3 확장성 개선 |
+
 ## 🎨 Customized & Added Features (추가 및 변경 기능)
 
 This customized version expands the original library with more color choices and rich LED animations.  
