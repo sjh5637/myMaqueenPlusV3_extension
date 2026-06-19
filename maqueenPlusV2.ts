@@ -226,6 +226,7 @@ namespace maqueenPlusV2 {
      * @param speed  Motor speed control, eg:100
      */
 
+    //% blockId=controlMotor
     //% block="set %emotor direction %edir speed %speed"
     //% speed.min=0 speed.max=255
     //% weight=99
@@ -263,6 +264,8 @@ namespace maqueenPlusV2 {
      * @param emotor Motor selection enumeration
      */
 
+    //% blockId=controlMotorStop
+    //% blockId=controlMotorStop
     //% block="set %emotor stop"
     //% weight=98
     //% group="Motor"
@@ -300,6 +303,7 @@ namespace maqueenPlusV2 {
      * @param eSwitch Control LED light on or off
      */
 
+    //% blockId=controlLED
     //% block="control %eled %eSwitch"
     //% weight=97
     //% group="LED"
@@ -332,6 +336,7 @@ namespace maqueenPlusV2 {
      * @param eline Select the inspection sensor enumeration
      */
 
+    //% blockId=readLineSensorState
     //% block="read line sensor %eline state"
     //% weight=96
     //% group="Sensors"
@@ -364,6 +369,7 @@ namespace maqueenPlusV2 {
      * @param eline Select the inspection sensor enumeration
      */
 
+    //% blockId=readLineSensorData
     //% block="read line sensor %eline  ADC data"
     //% weight=95
     //% group="Sensors"
@@ -413,6 +419,7 @@ namespace maqueenPlusV2 {
      * @note fit sr04/urm10   The difference between the two is that the echo sending time is different. 
      * The sr04 sends the echo only after receiving the echo. When urm10 is triggered, it sends echo and stops after the echo
      */
+    //% blockId=readUltrasonic
     //% block="set ultrasonic sensor TRIG pin %trig ECHO pin %echo read data unit:cm"
     //% weight=94
     //% group="Sensors"
@@ -467,6 +474,7 @@ namespace maqueenPlusV2 {
     */
 
     //% weight=60
+    //% blockId=rgb
     //% r.min=0 r.max=255
     //% g.min=0 g.max=255
     //% b.min=0 b.max=255
@@ -483,6 +491,7 @@ namespace maqueenPlusV2 {
      */
 
     //% weight=60
+    //% blockId=ledRange
     //% from.min=0 from.max=3
     //% to.min=0 to.max=3
     //% block="range from |%from with|%to leds"
@@ -520,6 +529,7 @@ namespace maqueenPlusV2 {
      * @param rgb selected color
      */
     //% weight=65
+    //% blockId=setOnboardRGB
     //% pin.defl=DigitalPin.P15
     //% block="SET PIN|%pin onboard RGB LED|%index show color|%rgb=neopixel_colors"
     //% group="NeoPixel"
@@ -538,6 +548,7 @@ namespace maqueenPlusV2 {
      * @param rgb , color
      */
     //% weight=60
+    //% blockId=setIndexColor
     //% index.min=0 index.max=3
     //% pin.defl=DigitalPin.P15
     //% block="SET PIN|%pin RGB light |%index show color|%rgb=neopixel_colors"
@@ -577,6 +588,7 @@ namespace maqueenPlusV2 {
      */
 
     //% weight=60
+    //% blockId=showColor
     //% pin.defl=DigitalPin.P15
     //% block=" SET PIN|%pin RGB show color|%rgb=neopixel_colors"
     //% group="NeoPixel"
@@ -601,6 +613,7 @@ namespace maqueenPlusV2 {
      */
 
     //% weight=70
+    //% blockId=setBrightness
     //% brightness.min=0 brightness.max=255
     //% block="set RGB brightness to |%brightness"
     //% group="NeoPixel"
@@ -616,6 +629,7 @@ namespace maqueenPlusV2 {
      */
 
     //% weight=40
+    //% blockId=ledBlank
     //% pin.defl=DigitalPin.P15
     //% block="Set pin|%pin clear all RGB"
     //% group="NeoPixel"
@@ -838,6 +852,7 @@ namespace maqueenPlusV2 {
      * @param speed Patrol speed level
      */
 
+    //% blockId=setPatrolSpeed
     //% block="Line Following Settings Speed %speed=PatrolSpeed_conv"
     //% weight=24
     //% group="V3"
@@ -854,6 +869,7 @@ namespace maqueenPlusV2 {
      * @param type to type ,eg: MotorType.Motor133
      */
 
+    //% blockId=setMotorType
     //% block="set up motor type %type"
     //% weight=23
     //% group="V3"
@@ -869,6 +885,7 @@ namespace maqueenPlusV2 {
      * @param mode Intersection action (Straight, Left, Right, Stop)
      */
     maqueenPlusV2.setRightOrStraightRunMode(RightOrStraight.Straight)
+    //% blockId=setIntersectionRunMode
     //% block="At Crossroads %mode"
     //% weight=22
     //% group="V3"
@@ -886,6 +903,7 @@ namespace maqueenPlusV2 {
      * @param mode T-junction action (Left, Right, Stop)
      */
 
+    //% blockId=setTRordRunMode
     //% block="At T-junction %mode"
     //% weight=21
     //% group="V3"
@@ -903,6 +921,7 @@ namespace maqueenPlusV2 {
      * @param mode Action (Straight, Left, Stop)
      */
 
+    //% blockId=setLeftOrStraightRunMode
     //% block="At Left Turn and Straight Intersection %mode"
     //% weight=20
     //% group="V3"
@@ -920,6 +939,7 @@ namespace maqueenPlusV2 {
      * @param mode Action (Straight, Right, Stop)
      */
 
+    //% blockId=setRightOrStraightRunMode
     //% block="At Right Turn and Straight Intersection %mode"
     //% weight=19
     //% group="V3"
@@ -937,6 +957,7 @@ namespace maqueenPlusV2 {
      * @param patrol Patrolling state
      */
 
+    //% blockId=patrolling
     //% block="Line patrolling %patrol"
     //% weight=18
     //% group="V3"
@@ -956,6 +977,7 @@ namespace maqueenPlusV2 {
      * Read the currently detected intersection status code from Maqueen Plus V3.
      */
 
+    //% blockId=intersectionDetecting
     //% block="Intersection Detection"
     //% weight=17
     //% group="V3"
@@ -972,6 +994,7 @@ namespace maqueenPlusV2 {
      * @param type Sensor side (Left/Right)
      */
 
+    //% blockId=readLightIntensity
     //% block="Read Light Values %type"
     //% weight=16
     //% group="V3"
@@ -994,6 +1017,7 @@ namespace maqueenPlusV2 {
      * @param interruption Interruption permission
      */
 
+    //% blockId=pidControlDistance
     //% block="PID Distance Control %dir  distance %distance cm   %interruption  interruption"
     //% weight=15
     //% group="V3"
@@ -1033,6 +1057,7 @@ namespace maqueenPlusV2 {
      * @param interruption Interruption permission
      */
 
+    //% blockId=pidControlAngle
     //% block="PID Angle Control speed  angle %angle %interruption  interruption"
     //% angle.min=-180 angle.max=180 angle.defl=90
     //% weight=14
@@ -1071,6 +1096,7 @@ namespace maqueenPlusV2 {
      * Stop any currently running PID distance or angle control movements.
      */
 
+    //% blockId=pidControlStop
     //% block="PID Control Stop"
     //% weight=13
     //% group="V3"
@@ -1088,6 +1114,7 @@ namespace maqueenPlusV2 {
      * @param type Wheel side (Left/Right)
      */
 
+    //% blockId=readRealTimeSpeed
     //% block="Read Real-time Speed %type wheel"
     //% weight=12
     //% group="V3"
@@ -1109,6 +1136,7 @@ namespace maqueenPlusV2 {
      * @param rgb Selected car light color
      */
 
+    //% blockId=setRgblLed
     //% block="RGB Car Lights %type color %rgb"
     //% weight=11
     //% group="V3"
@@ -1136,7 +1164,9 @@ namespace maqueenPlusV2 {
      * Stop all running LED animations
      * @param pin pin to control the leds
      */
-    //% weight=9 block="SET PIN|%pin stop all animations"
+    //% weight=9
+    //% blockId=stopAnimations
+    //% block="SET PIN|%pin stop all animations"
     //% pin.defl=DigitalPin.P15
     //% group="Effects"
     export function stopAnimations(pin: DigitalPin) {
@@ -1155,6 +1185,7 @@ namespace maqueenPlusV2 {
      * @param interval interval in milliseconds
      */
     //% weight=8
+    //% blockId=startSiren
     //% pin.defl=DigitalPin.P15
     //% interval.defl=200
     //% group="Effects"
@@ -1194,6 +1225,7 @@ namespace maqueenPlusV2 {
      * @param interval interval in milliseconds
      */
     //% weight=7
+    //% blockId=startBlinker
     //% pin.defl=DigitalPin.P15
     //% interval.defl=500
     //% group="Effects"
@@ -1234,6 +1266,7 @@ namespace maqueenPlusV2 {
      * @param speed speed of breathing (1-5)
      */
     //% weight=6
+    //% blockId=startBreathing
     //% pin.defl=DigitalPin.P15
     //% speed.min=1 speed.max=5 speed.defl=3
     //% group="Effects"
@@ -1297,6 +1330,7 @@ namespace maqueenPlusV2 {
      * @param emotion selected emotion type
      */
     //% weight=5
+    //% blockId=expressEmotion
     //% block="express emotion %emotion"
     //% group="Effects"
     export function expressEmotion(emotion: MyEmotion): void {
