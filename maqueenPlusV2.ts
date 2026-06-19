@@ -1632,7 +1632,8 @@ namespace maqueenPlusV2 {
     //% stopMotors.defl=true
     //% lightAlert.defl=true
     //% soundAlert.defl=true
-    //% block="when line deviated motors|%stopMotors light|%lightAlert sound|%soundAlert handler"
+    //% block="when line deviated motors|%stopMotors light|%lightAlert sound|%soundAlert"
+    //% draggableParameters="reporter"
     //% group="Effects"
     export function onLineDeviated(stopMotors: boolean, lightAlert: boolean, soundAlert: boolean, handler: () => void): void {
         deviationHandler = handler;
