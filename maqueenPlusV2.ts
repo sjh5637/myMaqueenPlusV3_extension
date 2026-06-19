@@ -1622,22 +1622,17 @@ namespace maqueenPlusV2 {
 
     /**
      * Set up line deviation handler and start monitoring (V2 & V3 compatible).
-     * @param stopMotors automatically stop motors when deviated, eg: true
-     * @param lightAlert automatically turn on warning lights when deviated, eg: true
-     * @param soundAlert automatically play alert tone when deviated, eg: true
-     * @param handler code to run when deviated
+     * When robot deviates from black line: stops motors, shows red alert light, and plays alert tone.
+     * @param callback code to run when line is deviated
      */
     //% weight=2
     //% blockId=onLineDeviated
-    //% stopMotors.defl=true
-    //% lightAlert.defl=true
-    //% soundAlert.defl=true
-    //% block="when line deviated motors|%stopMotors light|%lightAlert sound|%soundAlert"
-    //% draggableParameters="reporter"
+    //% block="on line deviated do"
+    //% draggableParameters=block
     //% group="Effects"
-    export function onLineDeviated(stopMotors: boolean, lightAlert: boolean, soundAlert: boolean, handler: () => void): void {
-        deviationHandler = handler;
-        startLineSafetyMonitor(DigitalPin.P15, NeoPixelColors.Red, stopMotors, lightAlert, soundAlert);
+    export function onLineDeviated(callback: () => void): void {
+        deviationHandler = callback;
+        startLineSafetyMonitor(DigitalPin.P15, NeoPixelColors.Red, true, true, true);
     }
 
 }
