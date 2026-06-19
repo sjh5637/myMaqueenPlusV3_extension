@@ -1627,8 +1627,8 @@ namespace maqueenPlusV2 {
      */
     //% weight=2
     //% blockId=onLineDeviated
-    //% block="on line deviated do"
-    //% draggableParameters=block
+    //% block="on line deviated"
+    //% handlerStatement=1
     //% group="Effects"
     export function onLineDeviated(callback: () => void): void {
         deviationHandler = callback;
