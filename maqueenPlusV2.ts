@@ -175,7 +175,7 @@ namespace maqueenPlusV2 {
     let safetyStopMotors = true;
     let safetyLightAlert = true;
     let safetySoundAlert = true;
-    let deviationHandler: (() => void) | null = null;
+    let deviationHandler: () => void = null;
 
     /**
      *  Init I2C until success
@@ -450,6 +450,7 @@ namespace maqueenPlusV2 {
      * Getting the version number
      */
     
+    //% blockId=readVersion
     //% block="read version"
     //% weight=30
     //% advanced=true
@@ -884,7 +885,6 @@ namespace maqueenPlusV2 {
      * Set the movement direction when Maqueen Plus V3 detects a crossroad intersection.
      * @param mode Intersection action (Straight, Left, Right, Stop)
      */
-    maqueenPlusV2.setRightOrStraightRunMode(RightOrStraight.Straight)
     //% blockId=setIntersectionRunMode
     //% block="At Crossroads %mode"
     //% weight=22
