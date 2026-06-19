@@ -175,7 +175,7 @@ namespace maqueenPlusV2 {
     let safetyStopMotors = true;
     let safetyLightAlert = true;
     let safetySoundAlert = true;
-    let deviationHandler: () => void = null;
+    let deviationHandler: (() => void) | null = null;
 
     /**
      *  Init I2C until success
