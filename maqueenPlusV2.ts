@@ -1505,10 +1505,11 @@ namespace maqueenPlusV2 {
      */
     //% weight=4
     //% pin.defl=DigitalPin.P15
+    //% color.defl=0xFF0000
     //% stopMotors.defl=true
     //% lightAlert.defl=true
     //% soundAlert.defl=true
-    //% block="SET PIN|%pin start line safety monitor with alert color|%color=neopixel_colors stop motors|%stopMotors light alert|%lightAlert sound alert|%soundAlert"
+    //% block="PIN|%pin line safety start color|%color motors|%stopMotors light|%lightAlert sound|%soundAlert"
     //% group="Effects"
     export function startLineSafetyMonitor(
         pin: DigitalPin, 
@@ -1574,7 +1575,7 @@ namespace maqueenPlusV2 {
      */
     //% weight=3
     //% pin.defl=DigitalPin.P15
-    //% block="SET PIN|%pin stop line safety monitor"
+    //% block="PIN|%pin line safety stop"
     //% group="Effects"
     export function stopLineSafetyMonitor(pin: DigitalPin): void {
         safetyMonitorActive = false;
@@ -1593,7 +1594,7 @@ namespace maqueenPlusV2 {
     //% stopMotors.defl=true
     //% lightAlert.defl=true
     //% soundAlert.defl=true
-    //% block="on line deviated || stop motors %stopMotors light alert %lightAlert sound alert %soundAlert"
+    //% block="on line deviated motors|%stopMotors light|%lightAlert sound|%soundAlert"
     //% group="Effects"
     export function onLineDeviated(stopMotors: boolean, lightAlert: boolean, soundAlert: boolean, handler: () => void) {
         deviationHandler = handler;
