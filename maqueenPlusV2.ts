@@ -1504,6 +1504,7 @@ namespace maqueenPlusV2 {
      * @param soundAlert automatically play alert tone when deviated, eg: true
      */
     //% weight=4
+    //% blockId=lineMonitorStart
     //% pin.defl=DigitalPin.P15
     //% color.defl=0xFF0000
     //% stopMotors.defl=true
@@ -1575,6 +1576,7 @@ namespace maqueenPlusV2 {
      * @param pin pin to control the leds
      */
     //% weight=3
+    //% blockId=lineMonitorStop
     //% pin.defl=DigitalPin.P15
     //% block="stop line safety monitor PIN|%pin"
     //% group="Effects"
@@ -1592,6 +1594,7 @@ namespace maqueenPlusV2 {
      * @param handler code to run when deviated
      */
     //% weight=2
+    //% blockId=onLineDeviated
     //% stopMotors.defl=true
     //% lightAlert.defl=true
     //% soundAlert.defl=true
