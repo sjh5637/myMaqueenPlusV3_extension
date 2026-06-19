@@ -169,6 +169,14 @@ namespace maqueenPlusV2 {
     let _brightness = 255
     let state: number;
 
+    // Line safety monitor state variables
+    let safetyMonitorActive = false;
+    let safetyAlertColor = 0xFF0000; // Red
+    let safetyStopMotors = true;
+    let safetyLightAlert = true;
+    let safetySoundAlert = true;
+    let deviationHandler: () => void = null;
+
     /**
      *  Init I2C until success
      */
@@ -1485,13 +1493,6 @@ namespace maqueenPlusV2 {
         showColor(DigitalPin.P15, 0);
         controlLED(MyEnumLed.AllLed, MyEnumSwitch.Close);
     }
-
-    let safetyMonitorActive = false;
-    let safetyAlertColor = NeoPixelColors.Red;
-    let safetyStopMotors = true;
-    let safetyLightAlert = true;
-    let safetySoundAlert = true;
-    let deviationHandler: () => void = null;
 
     /**
      * Start monitoring if the robot deviates from the black line (V2 & V3 compatible).
