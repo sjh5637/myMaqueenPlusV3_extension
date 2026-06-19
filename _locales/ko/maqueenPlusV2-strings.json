@@ -129,7 +129,7 @@
     "maqueenPlusV2.MyEmotion.Proud|block": "당당함",
     "maqueenPlusV2.MyEmotion.Confused|block": "어리둥절",
     "maqueenPlusV2.expressEmotion|block": "감정 표현 모션 %emotion 실행하기",
-    "maqueenPlusV2.startLineSafetyMonitor|block": "핀|%pin 라인 감시 시작 색|%color 모터|%stopMotors 불|%lightAlert 음|%soundAlert",
-    "maqueenPlusV2.stopLineSafetyMonitor|block": "핀|%pin 라인 감시 중지",
+    "maqueenPlusV2.startLineSafetyMonitor|block": "라인 감시 시작 핀|%pin 색상|%color 모터중지|%stopMotors 경고불|%lightAlert 소리|%soundAlert",
+    "maqueenPlusV2.stopLineSafetyMonitor|block": "라인 감시 중지 핀|%pin",
     "maqueenPlusV2.onLineDeviated|block": "라인 이탈했을 때 모터|%stopMotors 불|%lightAlert 음|%soundAlert"
 }

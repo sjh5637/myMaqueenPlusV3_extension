@@ -1509,13 +1509,14 @@ namespace maqueenPlusV2 {
     //% stopMotors.defl=true
     //% lightAlert.defl=true
     //% soundAlert.defl=true
-    //% block="PIN|%pin line safety start color|%color motors|%stopMotors light|%lightAlert sound|%soundAlert"
+    //% block="start line safety monitor PIN|%pin color|%color stop motors|%stopMotors light alert|%lightAlert sound|%soundAlert"
+    //% color.shadow=colorNumberPicker
     //% group="Effects"
     export function startLineSafetyMonitor(
-        pin: DigitalPin, 
-        color: number, 
-        stopMotors: boolean, 
-        lightAlert: boolean, 
+        pin: DigitalPin,
+        color: number,
+        stopMotors: boolean,
+        lightAlert: boolean,
         soundAlert: boolean
     ): void {
         safetyAlertColor = color;
@@ -1575,7 +1576,7 @@ namespace maqueenPlusV2 {
      */
     //% weight=3
     //% pin.defl=DigitalPin.P15
-    //% block="PIN|%pin line safety stop"
+    //% block="stop line safety monitor PIN|%pin"
     //% group="Effects"
     export function stopLineSafetyMonitor(pin: DigitalPin): void {
         safetyMonitorActive = false;
@@ -1584,21 +1585,20 @@ namespace maqueenPlusV2 {
     }
 
     /**
-     * Run code when the robot deviates from the black line (triggers safety monitor first).
+     * Set up line deviation handler and start monitoring (V2 & V3 compatible).
      * @param stopMotors automatically stop motors when deviated, eg: true
      * @param lightAlert automatically turn on warning lights when deviated, eg: true
      * @param soundAlert automatically play alert tone when deviated, eg: true
-     * @param handler code to run
+     * @param handler code to run when deviated
      */
     //% weight=2
     //% stopMotors.defl=true
     //% lightAlert.defl=true
     //% soundAlert.defl=true
-    //% block="on line deviated motors|%stopMotors light|%lightAlert sound|%soundAlert"
+    //% block="when line deviated motors|%stopMotors light|%lightAlert sound|%soundAlert handler"
     //% group="Effects"
-    export function onLineDeviated(stopMotors: boolean, lightAlert: boolean, soundAlert: boolean, handler: () => void) {
+    export function onLineDeviated(stopMotors: boolean, lightAlert: boolean, soundAlert: boolean, handler: () => void): void {
         deviationHandler = handler;
-        // Automatically start the monitor with default settings if not already started
         startLineSafetyMonitor(DigitalPin.P15, NeoPixelColors.Red, stopMotors, lightAlert, soundAlert);
     }
 

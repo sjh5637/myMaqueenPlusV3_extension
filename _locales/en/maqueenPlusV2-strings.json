@@ -129,7 +129,7 @@
     "maqueenPlusV2.MyEmotion.Proud|block": "Proud",
     "maqueenPlusV2.MyEmotion.Confused|block": "Confused",
     "maqueenPlusV2.expressEmotion|block": "express emotion %emotion",
-    "maqueenPlusV2.startLineSafetyMonitor|block": "PIN|%pin line safety start color|%color motors|%stopMotors light|%lightAlert sound|%soundAlert",
-    "maqueenPlusV2.stopLineSafetyMonitor|block": "PIN|%pin line safety stop",
-    "maqueenPlusV2.onLineDeviated|block": "on line deviated motors|%stopMotors light|%lightAlert sound|%soundAlert"
+    "maqueenPlusV2.startLineSafetyMonitor|block": "start line safety monitor PIN|%pin color|%color stop motors|%stopMotors light alert|%lightAlert sound|%soundAlert",
+    "maqueenPlusV2.stopLineSafetyMonitor|block": "stop line safety monitor PIN|%pin",
+    "maqueenPlusV2.onLineDeviated|block": "when line deviated motors|%stopMotors light|%lightAlert sound|%soundAlert handler"
 } 
