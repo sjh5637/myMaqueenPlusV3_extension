@@ -33,5 +33,8 @@
     "maqueenPlusV2.startSiren": "원하는 두 가지 색상을 교차하며 깜빡이는 사이렌 조명 애니메이션을 백그라운드로 구동합니다.",
     "maqueenPlusV2.startBlinker": "좌측/우측/전체 깜빡이를 지정한 색상과 시간 간격(ms)으로 백그라운드로 구동합니다.",
     "maqueenPlusV2.startBreathing": "지정한 색상의 밝기가 서서히 변하는 숨쉬기 조명 애니메이션을 백그라운드로 구동합니다.",
-    "maqueenPlusV2.expressEmotion": "모터 주행, 전면 LED, 섀시 RGB 네오픽셀, 부저 소리를 조합한 감정 표현 모션(10가지)을 실행합니다."
+    "maqueenPlusV2.expressEmotion": "모터 주행, 전면 LED, 섀시 RGB 네오픽셀, 부저 소리를 조합한 감정 표현 모션(10가지)을 실행합니다.",
+    "maqueenPlusV2.startLineSafetyMonitor": "로봇이 검은 라인을 벗어나는지 백그라운드에서 감시를 시작합니다. 이탈 시 모터 정지, 경고등 표시, 부저음 알림을 설정할 수 있습니다.",
+    "maqueenPlusV2.stopLineSafetyMonitor": "라인 이탈 감지기를 중지하고 경고등과 헤드라이트를 모두 끕니다.",
+    "maqueenPlusV2.onLineDeviated": "로봇이 단일 검은 라인을 완전히 벗어나거나 최외곽 센서(L2/R2)가 검은 라인을 밟았을 때(이탈) 실행할 코드를 정의합니다."
 }

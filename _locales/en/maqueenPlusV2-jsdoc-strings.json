@@ -16,5 +16,9 @@
     "maqueenPlusV2.ledBlank": "Turn off all RGB lights",
     "maqueenPlusV2.ledRainbow": "RGB lights display rainbow colors",
     "maqueenPlusV2.intersectionDetecting":"Return value: 1 is a crossroad, 2 is a left and right turn intersection (T-junction), 3 is a left turn and straight intersection, 4 is a right turn and straight intersection",
-    "maqueenPlusV2.readRealTimeSpeed":"Return value unit: centimeters per second (cm/s)"
+    "maqueenPlusV2.readRealTimeSpeed":"Return value unit: centimeters per second (cm/s)",
+    "maqueenPlusV2.expressEmotion": "Express an emotion using movements, lights, and sounds (V2 & V3 compatible).",
+    "maqueenPlusV2.startLineSafetyMonitor": "Start monitoring if the robot deviates from the black line (V2 & V3 compatible).",
+    "maqueenPlusV2.stopLineSafetyMonitor": "Stop the line safety monitor.",
+    "maqueenPlusV2.onLineDeviated": "Run code when the robot deviates from the black line (triggers safety monitor first)."
 } 

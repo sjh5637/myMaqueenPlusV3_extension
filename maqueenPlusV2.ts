@@ -1486,6 +1486,120 @@ namespace maqueenPlusV2 {
         controlLED(MyEnumLed.AllLed, MyEnumSwitch.Close);
     }
 
+    let safetyMonitorActive = false;
+    let safetyAlertColor = NeoPixelColors.Red;
+    let safetyStopMotors = true;
+    let safetyLightAlert = true;
+    let safetySoundAlert = true;
+    let deviationHandler: () => void = null;
+
+    /**
+     * Start monitoring if the robot deviates from the black line (V2 & V3 compatible).
+     * If it deviates (crosses L2/R2 or exits the line completely), it stops motors and alerts.
+     * @param pin pin to control the leds
+     * @param color alert color when deviated
+     * @param stopMotors automatically stop motors when deviated, eg: true
+     * @param lightAlert automatically turn on warning lights when deviated, eg: true
+     * @param soundAlert automatically play alert tone when deviated, eg: true
+     */
+    //% weight=4
+    //% pin.defl=DigitalPin.P15
+    //% stopMotors.defl=true
+    //% lightAlert.defl=true
+    //% soundAlert.defl=true
+    //% block="SET PIN|%pin start line safety monitor with alert color|%color=neopixel_colors stop motors|%stopMotors light alert|%lightAlert sound alert|%soundAlert"
+    //% group="Effects"
+    export function startLineSafetyMonitor(
+        pin: DigitalPin, 
+        color: number, 
+        stopMotors: boolean, 
+        lightAlert: boolean, 
+        soundAlert: boolean
+    ): void {
+        safetyAlertColor = color;
+        safetyStopMotors = stopMotors;
+        safetyLightAlert = lightAlert;
+        safetySoundAlert = soundAlert;
+
+        if (safetyMonitorActive) return;
+        safetyMonitorActive = true;
+
+        control.inBackground(function () {
+            let wasOnLine = false;
+            while (safetyMonitorActive) {
+                let l2 = readLineSensorState(MyEnumLineSensor.SensorL2);
+                let l1 = readLineSensorState(MyEnumLineSensor.SensorL1);
+                let m = readLineSensorState(MyEnumLineSensor.SensorM);
+                let r1 = readLineSensorState(MyEnumLineSensor.SensorR1);
+                let r2 = readLineSensorState(MyEnumLineSensor.SensorR2);
+
+                let isOnLine = (l1 === 1 || m === 1 || r1 === 1);
+                
+                // Trigger if L2 or R2 detects the black line, or if we were on the line and now completely lost it
+                let deviated = (l2 === 1 || r2 === 1) || (wasOnLine && !isOnLine && l2 === 0 && r2 === 0);
+
+                if (deviated) {
+                    if (safetyStopMotors) {
+                        controlMotorStop(MyEnumMotor.AllMotor);
+                    }
+                    if (safetyLightAlert) {
+                        showColor(pin, safetyAlertColor);
+                        controlLED(MyEnumLed.AllLed, MyEnumSwitch.Open);
+                    }
+                    if (safetySoundAlert) {
+                        music.playTone(440, 500);
+                    }
+                    
+                    // Trigger event callback if registered
+                    if (deviationHandler) {
+                        deviationHandler();
+                    }
+                    
+                    basic.pause(1000); // pause to prevent immediate re-trigger
+                    wasOnLine = false;
+                } else {
+                    if (isOnLine) {
+                        wasOnLine = true;
+                    }
+                }
+                basic.pause(50);
+            }
+        });
+    }
+
+    /**
+     * Stop the line safety monitor
+     * @param pin pin to control the leds
+     */
+    //% weight=3
+    //% pin.defl=DigitalPin.P15
+    //% block="SET PIN|%pin stop line safety monitor"
+    //% group="Effects"
+    export function stopLineSafetyMonitor(pin: DigitalPin): void {
+        safetyMonitorActive = false;
+        showColor(pin, 0);
+        controlLED(MyEnumLed.AllLed, MyEnumSwitch.Close);
+    }
+
+    /**
+     * Run code when the robot deviates from the black line (triggers safety monitor first).
+     * @param stopMotors automatically stop motors when deviated, eg: true
+     * @param lightAlert automatically turn on warning lights when deviated, eg: true
+     * @param soundAlert automatically play alert tone when deviated, eg: true
+     * @param handler code to run
+     */
+    //% weight=2
+    //% stopMotors.defl=true
+    //% lightAlert.defl=true
+    //% soundAlert.defl=true
+    //% block="on line deviated || stop motors %stopMotors light alert %lightAlert sound alert %soundAlert"
+    //% group="Effects"
+    export function onLineDeviated(stopMotors: boolean, lightAlert: boolean, soundAlert: boolean, handler: () => void) {
+        deviationHandler = handler;
+        // Automatically start the monitor with default settings if not already started
+        startLineSafetyMonitor(DigitalPin.P15, NeoPixelColors.Red, stopMotors, lightAlert, soundAlert);
+    }
+
 }
 
 

@@ -128,5 +128,8 @@
     "maqueenPlusV2.MyEmotion.Excited|block": "Excited",
     "maqueenPlusV2.MyEmotion.Proud|block": "Proud",
     "maqueenPlusV2.MyEmotion.Confused|block": "Confused",
-    "maqueenPlusV2.expressEmotion|block": "express emotion %emotion"
+    "maqueenPlusV2.expressEmotion|block": "express emotion %emotion",
+    "maqueenPlusV2.startLineSafetyMonitor|block": "SET PIN|%pin start line safety monitor with alert color|%color=neopixel_colors stop motors|%stopMotors light alert|%lightAlert sound alert|%soundAlert",
+    "maqueenPlusV2.stopLineSafetyMonitor|block": "SET PIN|%pin stop line safety monitor",
+    "maqueenPlusV2.onLineDeviated|block": "on line deviated || stop motors %stopMotors light alert %lightAlert sound alert %soundAlert"
 } 
