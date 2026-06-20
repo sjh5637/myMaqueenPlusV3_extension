@@ -448,6 +448,24 @@ function 구역최소(구역: number): number {
     return 최소 == 9999 ? 0 : 최소
 }
 
+function 거리밝기(거리: number): number {
+    if (거리 == 0) return 0
+    if (거리 < 긴급정지거리mm) return 255
+    if (거리 < 320) return 200
+    if (거리 < 520) return 130
+    if (거리 < 800) return 70
+    return 20
+}
+
+function LED레이더표시(): void {
+    basic.clearScreen()
+    led.plotBrightness(0, 2, 거리밝기(구역최소(0)))
+    led.plotBrightness(1, 2, 거리밝기(구역최소(0)))
+    led.plotBrightness(2, 2, 거리밝기(정면최소거리()))
+    led.plotBrightness(3, 2, 거리밝기(구역최소(2)))
+    led.plotBrightness(4, 2, 거리밝기(구역최소(2)))
+}
+
 function 초음파읍기(): number {
     if (!초음파사용) return 0
     let cm = maqueenPlusV2.readUltrasonic(초음파TRIG, 초음파ECHO)
