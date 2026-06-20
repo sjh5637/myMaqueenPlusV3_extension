@@ -121,4 +121,75 @@ function 구역노이즈(샘플들: number[][][], 컬럼들: number[], 행들: n
     }
     return 최대범위
 }
+
+function 오차문자열(값mm: number, 기대mm: number): string {
+    return 값mm == 0 ? "N/A" : "" + (값mm - 기대mm)
+}
+
+function 점프인가(이전: number, 현재: number): boolean {
+    if (이전 < 0) return false
+    if (이전 == 0 || 현재 == 0) return false
+    return Math.abs(현재 - 이전) > 큐브테스트_점프임계mm
+}
+
+const dN_A = 99999
+
+function 스텝측정(스텝번호: number): void {
+    let 샘플들 = 그리드3회읍기()
+    let 그리드 = 중앙값그리드(샘플들)
+
+    let 좌값 = 구역median(그리드, [1], [3, 4])
+    let 중앙값값 = 구역median(그리드, [3, 4], [3, 4])
+    let 우값 = 구역median(그리드, [6], [3, 4])
+
+    let 노이즈좌 = 구역노이즈(샘플들, [1], [3, 4])
+    let 노이즈중 = 구역노이즈(샘플들, [3, 4], [3, 4])
+    let 노이즈우 = 구역노이즈(샘플들, [6], [3, 4])
+
+    let 초음파cm = maqueenPlusV2.readUltrasonic(DigitalPin.P13, DigitalPin.P14)
+    let 초음파값 = Math.round(초음파cm * 10)
+
+    let 기대거리mm = 스텝번호 * 10
+
+    let jL = 점프인가(이전좌값, 좌값)
+    let jC = 점프인가(이전중앙값, 중앙값값)
+    let jR = 점프인가(이전우값, 우값)
+
+    let 점프문자열 = ""
+    if (jL) 점프문자열 += "L"
+    if (jC) 점프문자열 += "C"
+    if (jR) 점프문자열 += "R"
+    if (점프문자열 != "") 점프문자열 = "JUMP:" + 점프문자열
+
+    로그("STEP " + 스텝번호 + " cm=" + 스텝번호 + " exp=" + 기대거리mm + "mm"
+        + " L=" + 좌값 + "mm C=" + 중앙값값 + "mm R=" + 우값 + "mm"
+        + " uson=" + 초음파값 + "mm"
+        + " dL=" + 오차문자열(좌값, 기대거리mm)
+        + " dC=" + 오차문자열(중앙값값, 기대거리mm)
+        + " dR=" + 오차문자열(우값, 기대거리mm)
+        + " dU=" + 오차문자열(초음파값, 기대거리mm)
+        + " nL=" + 노이즈좌 + " nC=" + 노이즈중 + " nR=" + 노이즈우
+        + " " + 점프문자열)
+
+    for (let y = 0; y < 8; y++) {
+        let 줄 = "ROW" + y + ":"
+        for (let x = 0; x < 8; x++) 줄 += " " + 그리드[y][x]
+        로그(줄)
+    }
+
+    좌결과.push(좌값)
+    중앙결과.push(중앙값값)
+    우결과.push(우값)
+    dL결과.push(좌값 == 0 ? dN_A : 좌값 - 기대거리mm)
+    dC결과.push(중앙값값 == 0 ? dN_A : 중앙값값 - 기대거리mm)
+    dR결과.push(우값 == 0 ? dN_A : 우값 - 기대거리mm)
+    dU결과.push(초음파값 <= 0 ? dN_A : 초음파값 - 기대거리mm)
+    좌JUMP.push(jL)
+    중앙JUMP.push(jC)
+    우JUMP.push(jR)
+
+    이전좌값 = 좌값
+    이전중앙값 = 중앙값값
+    이전우값 = 우값
+}
 ```
