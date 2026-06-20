@@ -143,6 +143,9 @@ let 샘플구역 = [0, 0, 0, 1, 1, 1, 1, 1, 1, 2, 2, 2] // 0=left, 1=front, 2=ri
 let 샘플높이 = [0, 1, 2, 0, 0, 1, 1, 2, 2, 0, 1, 2] // 0=high, 1=middle, 2=low
 let 빠른샘플 = [1, 5, 6, 7, 8, 10]
 let 재탐색각도 = [-90, -45, 0, 45, 90]
+let 재탐색각도세밀 = [-90, -75, -60, -45, -30, -15, 0, 15, 30, 45, 60, 75, 90]
+let 재탐색각도세밀후방우 = [105, 120, 135, 150, 165, 180]
+let 재탐색각도세밀후방좌 = [-105, -120, -135, -150, -165, -180]
 let 기준값: number[] = []
 let 최근값: number[] = []
 let 막힘연속: number[] = []
@@ -865,6 +868,36 @@ function 초기360탐색(): void {
     maqueenPlusV2.pidControlAngle(예약회전각, maqueenPlusV2.MyInterruption.NotAllowed)
     회전기록(예약회전각)
     basic.pause(300)
+}
+
+function 각도순회탐색(각도목록: number[]): number {
+    let 최고점수 = -999999
+    let 최고각 = 각도목록[0]
+    maqueenPlusV2.pidControlAngle(각도목록[0], maqueenPlusV2.MyInterruption.NotAllowed)
+    for (let i = 0; i < 각도목록.length; i++) {
+        let 후보각 = 각도목록[i]
+        let 점수 = 탐색점수(후보각)
+        if (점수 > 최고점수) {
+            최고점수 = 점수
+            최고각 = 후보각
+        }
+        lcd문자(1, 8, 16, 감시모드 + " " + (i + 1) + "/" + 각도목록.length, 0x000000)
+        lcd문자(2, 8, 54, "DIR " + 후보각, 0x0000ff)
+        lcd문자(3, 8, 92, "SCORE " + 점수, 0x008000)
+        lcd문자(4, 8, 130, "BEST " + 최고각, 0xaa00aa)
+        로그(감시모드 + " DIR " + 후보각 + " SCORE " + 점수)
+        if (i < 각도목록.length - 1) {
+            maqueenPlusV2.pidControlAngle(각도목록[i + 1] - 각도목록[i], maqueenPlusV2.MyInterruption.NotAllowed)
+        }
+    }
+    예약회전각 = 최고각 - 각도목록[각도목록.length - 1]
+    마지막판단 = "BEST " + 최고각
+    로그(감시모드 + " BEST " + 최고각 + " SCORE " + 최고점수)
+    maqueenPlusV2.pidControlAngle(예약회전각, maqueenPlusV2.MyInterruption.NotAllowed)
+    회전기록(예약회전각)
+    basic.pause(300)
+    마지막탐색점수 = 최고점수
+    return 최고각
 }
 
 function 재탐색180(탈출모드: boolean): boolean {
