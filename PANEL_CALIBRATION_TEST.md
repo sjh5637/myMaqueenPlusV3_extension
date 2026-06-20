@@ -246,4 +246,56 @@ function 테스트요약(): void {
     로그("SUMMARY JumpC " + 점프목록(중앙JUMP))
     로그("SUMMARY JumpR " + 점프목록(우JUMP))
 }
+
+function 로봇초기화_테스트(): void {
+    maqueenPlusV2.I2CInit()
+    matrixLidarDistance.initialize(라이다주소, matrixLidarDistance.Matrix.MAT)
+    basic.pause(500)
+    로그("CALTEST BOOT")
+    basic.showIcon(IconNames.Target)
+}
+
+function 보정테스트시작(): void {
+    시작됨 = true
+    이전좌값 = -1
+    이전중앙값 = -1
+    이전우값 = -1
+    좌결과 = []
+    중앙결과 = []
+    우결과 = []
+    dL결과 = []
+    dC결과 = []
+    dR결과 = []
+    dU결과 = []
+    좌JUMP = []
+    중앙JUMP = []
+    우JUMP = []
+
+    로그("CALTEST START")
+    for (let n = 3; n > 0; n--) {
+        basic.showNumber(n)
+        basic.pause(700)
+    }
+    basic.clearScreen()
+
+    for (let 스텝 = 0; 스텝 <= 최대거리cm; 스텝++) {
+        if (스텝 > 0) {
+            maqueenPlusV2.pidControlDistance(maqueenPlusV2.SpeedDirection.SpeedCCW, 1, maqueenPlusV2.MyInterruption.NotAllowed)
+        }
+        basic.showNumber(스텝)
+        스텝측정(스텝)
+        basic.pause(150)
+    }
+
+    테스트요약()
+    basic.showIcon(IconNames.Yes)
+    로그("CALTEST DONE")
+    시작됨 = false
+}
+
+input.onButtonPressed(Button.B, function () {
+    if (!시작됨) 보정테스트시작()
+})
+
+로봇초기화_테스트()
 ```
