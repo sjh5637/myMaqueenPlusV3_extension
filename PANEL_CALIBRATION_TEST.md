@@ -87,6 +87,12 @@ const 각도체크반복 = 5
 const 로그송신지연ms = 4
 const 회전테스트범위도 = 45
 const 회전테스트스텝도 = 5
+const 보정후진거리cm = 10
+const 보정후진거리mm = 100
+const 거리허용오차mm = 15
+const 컬럼편차참고mm = 10
+const 목표거리mm = Math.round(Math.sqrt(보정후진거리mm * 보정후진거리mm + 기본라이더높이mm * 기본라이더높이mm))
+const 기울기갱신지연ms = 150
 
 radio.setGroup(라디오그룹)
 radio.setTransmitPower(7)
