@@ -47,15 +47,18 @@ serial.writeLine("All emotional expression tests finished!")
 // Test safety monitor initialization and events
 serial.writeLine("Testing line safety monitor blocks...")
 
-// Register line deviated event handler with customized auto-actions (optional options)
-maqueenPlusV2.onLineDeviated(true, true, false, function () {
-    serial.writeLine("Event: Line deviated! (Auto-actions: Stop motors=true, Lights=true, Sound=false)")
+// Register line deviated event handler. Reactions are user code inside the event.
+maqueenPlusV2.onLineDeviated(function () {
+    serial.writeLine("Event: Line deviated!")
+    maqueenPlusV2.controlMotorStop(maqueenPlusV2.MyEnumMotor.AllMotor)
+    maqueenPlusV2.showColor(DigitalPin.P15, maqueenPlusV2.NeoPixelColors.Red)
 })
 
 // Start/stop monitor manually to check function calls
-maqueenPlusV2.startLineSafetyMonitor(DigitalPin.P15, NeoPixelColors.Blue, false, true, true)
+maqueenPlusV2.startLineSafetyMonitor()
+maqueenPlusV2.startLineSafetyMonitor(DigitalPin.P15, maqueenPlusV2.NeoPixelColors.Blue, false, true, true)
 basic.pause(1000)
+maqueenPlusV2.stopLineSafetyMonitor()
 maqueenPlusV2.stopLineSafetyMonitor(DigitalPin.P15)
 
 serial.writeLine("All tests finished successfully!")
-

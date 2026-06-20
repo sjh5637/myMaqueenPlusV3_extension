@@ -15,7 +15,7 @@ const enum PatrolSpeed {
 /**
  * Custom graphic block
  */
-//% weight=100 color=#0fbc11 icon="\uf067" block="MaqueenPlusV2&V3"
+//% weight=100 color=#0fbc11 icon="\uf067" block="MaqueenPlusV3"
 //% groups="['Setup', 'Motor', 'LED', 'Sensors', 'NeoPixel', 'V3', 'Effects']"
 namespace maqueenPlusV2 {
 
@@ -170,12 +170,9 @@ namespace maqueenPlusV2 {
     let state: number;
 
     // Line safety monitor state variables
+    const LINE_DEVIATED_EVENT_SOURCE = 3101;
+    const LINE_DEVIATED_EVENT_VALUE = 1;
     let safetyMonitorActive = false;
-    let safetyAlertColor = 0xFF0000; // Red
-    let safetyStopMotors = true;
-    let safetyLightAlert = true;
-    let safetySoundAlert = true;
-    let deviationHandler: () => void = null;
 
     /**
      *  Init I2C until success
@@ -1530,40 +1527,26 @@ namespace maqueenPlusV2 {
 
     /**
      * Start monitoring if the robot deviates from the black line (V2 & V3 compatible).
-     * If it deviates (crosses L2/R2 or exits the line completely), it stops motors and alerts.
-     * @param pin pin to control the leds
-     * @param color alert color when deviated
-     * @param stopMotors automatically stop motors when deviated, eg: true
-     * @param lightAlert automatically turn on warning lights when deviated, eg: true
-     * @param soundAlert automatically play alert tone when deviated, eg: true
+     * When it deviates, the "on line deviated" event is raised.
      */
     //% weight=4
     //% blockId=lineMonitorStart
-    //% pin.defl=DigitalPin.P15
-    //% color.defl=0xFF0000
-    //% stopMotors.defl=true
-    //% lightAlert.defl=true
-    //% soundAlert.defl=true
-    //% block="start line safety monitor PIN|%pin color|%color stop motors|%stopMotors light alert|%lightAlert sound|%soundAlert"
-    //% color.shadow=colorNumberPicker
+    //% block="start line monitor"
     //% group="Effects"
+    //% advanced=true
     export function startLineSafetyMonitor(
-        pin: DigitalPin,
-        color: number,
-        stopMotors: boolean,
-        lightAlert: boolean,
-        soundAlert: boolean
+        pin: DigitalPin = DigitalPin.P15,
+        color: number = 0,
+        stopMotors: boolean = false,
+        lightAlert: boolean = false,
+        soundAlert: boolean = false
     ): void {
-        safetyAlertColor = color;
-        safetyStopMotors = stopMotors;
-        safetyLightAlert = lightAlert;
-        safetySoundAlert = soundAlert;
-
         if (safetyMonitorActive) return;
         safetyMonitorActive = true;
 
         control.inBackground(function () {
             let wasOnLine = false;
+            let deviationLatched = false;
             while (safetyMonitorActive) {
                 let l2 = readLineSensorState(MyEnumLineSensor.SensorL2);
                 let l1 = readLineSensorState(MyEnumLineSensor.SensorL1);
@@ -1576,29 +1559,13 @@ namespace maqueenPlusV2 {
                 // Trigger if L2 or R2 detects the black line, or if we were on the line and now completely lost it
                 let deviated = (l2 === 1 || r2 === 1) || (wasOnLine && !isOnLine && l2 === 0 && r2 === 0);
 
-                if (deviated) {
-                    if (safetyStopMotors) {
-                        controlMotorStop(MyEnumMotor.AllMotor);
-                    }
-                    if (safetyLightAlert) {
-                        showColor(pin, safetyAlertColor);
-                        controlLED(MyEnumLed.AllLed, MyEnumSwitch.Open);
-                    }
-                    if (safetySoundAlert) {
-                        music.playTone(440, 500);
-                    }
-                    
-                    // Trigger event callback if registered
-                    if (deviationHandler) {
-                        deviationHandler();
-                    }
-                    
-                    basic.pause(1000); // pause to prevent immediate re-trigger
+                if (deviated && !deviationLatched) {
+                    control.raiseEvent(LINE_DEVIATED_EVENT_SOURCE, LINE_DEVIATED_EVENT_VALUE);
+                    deviationLatched = true;
                     wasOnLine = false;
-                } else {
-                    if (isOnLine) {
-                        wasOnLine = true;
-                    }
+                } else if (isOnLine && l2 === 0 && r2 === 0) {
+                    wasOnLine = true;
+                    deviationLatched = false;
                 }
                 basic.pause(50);
             }
@@ -1607,35 +1574,28 @@ namespace maqueenPlusV2 {
 
     /**
      * Stop the line safety monitor
-     * @param pin pin to control the leds
      */
     //% weight=3
     //% blockId=lineMonitorStop
-    //% pin.defl=DigitalPin.P15
-    //% block="stop line safety monitor PIN|%pin"
+    //% block="stop line monitor"
     //% group="Effects"
-    export function stopLineSafetyMonitor(pin: DigitalPin): void {
+    //% advanced=true
+    export function stopLineSafetyMonitor(pin: DigitalPin = DigitalPin.P15): void {
         safetyMonitorActive = false;
-        showColor(pin, 0);
-        controlLED(MyEnumLed.AllLed, MyEnumSwitch.Close);
     }
 
     /**
-     * Set up line deviation handler and start monitoring (V2 & V3 compatible).
-     * When robot deviates from black line: stops motors, shows red alert light, and plays alert tone.
+     * Run code when the robot deviates from the black line.
      * @param callback code to run when line is deviated
      */
     //% weight=2
     //% blockId=onLineDeviated
-    //% block="on line deviated"
+    //% block="when line deviated"
     //% handlerStatement=1
     //% group="Effects"
+    //% advanced=true
     export function onLineDeviated(callback: () => void): void {
-        deviationHandler = callback;
-        startLineSafetyMonitor(DigitalPin.P15, NeoPixelColors.Red, true, true, true);
+        control.onEvent(LINE_DEVIATED_EVENT_SOURCE, LINE_DEVIATED_EVENT_VALUE, callback);
     }
 
 }
-
-
-

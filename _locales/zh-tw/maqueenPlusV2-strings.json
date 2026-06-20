@@ -1,5 +1,5 @@
 {
-    "maqueenPlusV2.MyEnumMotor.LeftMotor|block":"左側馬達",
+    "maqueenPlusV2.MyEnumMotor.LeftMotor|block": "左側馬達",
     "maqueenPlusV2.MyEnumMotor.RightMotor|block": "右側馬達",
     "maqueenPlusV2.MyEnumMotor.AllMotor|block": "全部馬達",
     "maqueenPlusV2.MyEnumDir.Forward|block": "前進",
@@ -9,13 +9,13 @@
     "maqueenPlusV2.MyEnumLed.AllLed|block": "全部LED燈",
     "maqueenPlusV2.MyEnumSwitch.Close|block": "關閉",
     "maqueenPlusV2.MyEnumSwitch.Open|block": "開啟",
-    "maqueenPlusV2.controlMotor|block":"設置 %emotor 方向 %edir 速度 %speed",
-    "maqueenPlusV2.controlLED|block":"控制 %eled %eSwitch",
-    "maqueenPlusV2.readLineSensorState|block":"讀取循跡感測器 %eline 狀態",
-    "maqueenPlusV2.readLineSensorData|block":"讀取循跡感測器 %eline ADC數據",
+    "maqueenPlusV2.controlMotor|block": "設置 %emotor 方向 %edir 速度 %speed",
+    "maqueenPlusV2.controlLED|block": "控制 %eled %eSwitch",
+    "maqueenPlusV2.readLineSensorState|block": "讀取循跡感測器 %eline 狀態",
+    "maqueenPlusV2.readLineSensorData|block": "讀取循跡感測器 %eline ADC數據",
     "maqueenPlusV2.readUltrasonic|block": "設置超音波感測器 TRIG 角位 %trig ECHO角位 %echo 獲取數據 單位:CM",
     "maqueenPlusV2.readVersion|block": "讀取版本號",
-    "maqueenPlusV2.controlMotorStop|block":"設置 %emotor 停止",
+    "maqueenPlusV2.controlMotorStop|block": "設置 %emotor 停止",
     "maqueenPlusV2.IR_read|block": "读红外线键值",
     "maqueenPlusV2.IR_callbackUser|block": "当红外接收到",
     "maqueenPlusV2.onIrDatagram|block": "当红外接收到",
@@ -86,6 +86,6 @@
     "maqueenPlusV2.SpeedDirection.SpeedCCW|block": "後退",
     "maqueenPlusV2.MyInterruption.Allowed|block": "允許",
     "maqueenPlusV2.MyInterruption.NotAllowed|block": "不允許",
-    "maqueenPlusV2|block": "麥昆Plus V2&V3",
-    "{id:category}maqueenPlusV2": "麥昆Plus V2&V3"
+    "maqueenPlusV2|block": "\u9ea5\u6606Plus V3",
+    "{id:category}maqueenPlusV2": "\u9ea5\u6606Plus V3"
 }

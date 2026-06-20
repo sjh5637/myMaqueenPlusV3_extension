@@ -86,8 +86,8 @@
     "maqueenPlusV2.SpeedDirection.SpeedCCW|block": "Backward",
     "maqueenPlusV2.MyInterruption.Allowed|block": "Allowed",
     "maqueenPlusV2.MyInterruption.NotAllowed|block": "Not allowed",
-    "maqueenPlusV2|block": "Maqueen Plus V2&V3",
-    "{id:category}maqueenPlusV2": "Maqueen Plus V2&V3",
+    "maqueenPlusV2|block": "MaqueenPlusV3",
+    "{id:category}maqueenPlusV2": "MaqueenPlusV3",
     "maqueenPlusV2.NeoPixelColors.Pink|block": "Pink",
     "maqueenPlusV2.NeoPixelColors.Magenta|block": "Magenta",
     "maqueenPlusV2.NeoPixelColors.Cyan|block": "Cyan",
@@ -129,7 +129,7 @@
     "maqueenPlusV2.MyEmotion.Proud|block": "Proud",
     "maqueenPlusV2.MyEmotion.Confused|block": "Confused",
     "maqueenPlusV2.expressEmotion|block": "express emotion %emotion",
-    "maqueenPlusV2.startLineSafetyMonitor|block": "start line safety monitor PIN|%pin color|%color stop motors|%stopMotors light alert|%lightAlert sound|%soundAlert",
-    "maqueenPlusV2.stopLineSafetyMonitor|block": "stop line safety monitor PIN|%pin",
-    "maqueenPlusV2.onLineDeviated|block": "when line deviated motors|%stopMotors light|%lightAlert sound|%soundAlert handler"
-} 
+    "maqueenPlusV2.startLineSafetyMonitor|block": "start line monitor",
+    "maqueenPlusV2.stopLineSafetyMonitor|block": "stop line monitor",
+    "maqueenPlusV2.onLineDeviated|block": "when line deviated"
+}

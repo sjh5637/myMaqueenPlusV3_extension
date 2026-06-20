@@ -90,6 +90,6 @@
     "maqueenPlusV2.SpeedDirection.SpeedCCW|block": "Achteruit",
     "maqueenPlusV2.MyInterruption.Allowed|block": "Toegestaan",
     "maqueenPlusV2.MyInterruption.NotAllowed|block": "Niet toegestaan",
-    "maqueenPlusV2|block": "Maqueen Plus V2&V3",
-    "{id:category}maqueenPlusV2": "Maqueen Plus V2&V3"
+    "maqueenPlusV2|block": "MaqueenPlusV3",
+    "{id:category}maqueenPlusV2": "MaqueenPlusV3"
 }
