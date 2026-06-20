@@ -519,8 +519,28 @@ function 회전테스트시작(): void {
     시작됨 = false
 }
 
+function 기울기보정시작(): void {
+    if (시작됨) return
+    시작됨 = true
+    중단요청 = false
+
+    maqueenPlusV2.pidControlDistance(maqueenPlusV2.SpeedDirection.SpeedCCW, 보정후진거리cm, maqueenPlusV2.MyInterruption.NotAllowed)
+
+    while (!중단요청) {
+        기울기보정틱()
+        basic.pause(기울기갱신지연ms)
+    }
+
+    lcd대기표시()
+    시작됨 = false
+}
+
 input.onButtonPressed(Button.AB, function () {
     회전테스트시작()
+})
+
+input.onLogoEvent(TouchButtonEvent.Pressed, function () {
+    기울기보정시작()
 })
 
 input.onButtonPressed(Button.B, function () {
