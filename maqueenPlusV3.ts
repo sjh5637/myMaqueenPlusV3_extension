@@ -1584,15 +1584,15 @@ namespace maqueenPlusV2 {
 
     /**
      * Run code when the robot deviates from the black line.
-     * @param callback code to run when line is deviated
+     * @param body code to run when line is deviated
      */
     //% weight=10
     //% blockId=onLineDeviated
     //% block="when line deviated"
-    //% handlerStatement=1
+    //% blockGap=16
     //% group="New Features"
-    export function onLineDeviated(callback: () => void): void {
-        control.onEvent(LINE_DEVIATED_EVENT_SOURCE, LINE_DEVIATED_EVENT_VALUE, callback);
+    export function onLineDeviated(body: () => void): void {
+        control.onEvent(LINE_DEVIATED_EVENT_SOURCE, LINE_DEVIATED_EVENT_VALUE, body);
     }
 
 }
