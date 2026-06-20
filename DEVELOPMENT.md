@@ -31,6 +31,12 @@ pxt serve                  # 로컬 MakeCode 에디터를 브라우저로 띄워
 영향을 주고 실제 빌드에는 전혀 관여하지 않습니다. 새 파일을 추가했는데 MakeCode에 안 보이면
 가장 먼저 `pxt.json`의 `files`에 등록했는지 확인하세요.
 
+`AUTONOMOUS_WANDER_EXAMPLE.md` 같은 Markdown 예제 파일의 TypeScript 코드블록도 실제
+확장 빌드 대상은 아닙니다. 예제 코드를 고쳤다면 `pxt build`와 별도로, 해당 코드블록을
+추출해 TypeScript 문법 검사를 한 번 더 돌리는 것이 안전합니다. 이 저장소에서는 보통
+8×8 자율주행 코드블록을 추출해 `typescript.transpileModule(..., reportDiagnostics: true)`로
+확인했습니다.
+
 ## 3. ⭐ MakeCode는 최신 git 태그를 불러온다 (커밋이 아님)
 
 **가장 자주 반복됐던 실수입니다.** MakeCode 에디터는 GitHub 저장소의 최신 *커밋*이 아니라

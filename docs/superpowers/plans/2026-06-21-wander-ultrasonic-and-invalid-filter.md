@@ -293,7 +293,7 @@ git commit -m "Wire ultrasonic into per-tick update, front emergency-stop check,
 
 `AUTONOMOUS_WANDER_EXAMPLE.md`는 마크다운이라 기본 tsc 대상이 아니다. 코드 블록만 추출해 임시 `.ts` 파일로 만들고 `tsconfig.json`에 한시적으로 추가해 컴파일을 확인한 뒤 원상복구한다.
 
-- [ ] **Step 1: 코드 블록 추출**
+- [x] **Step 1: 코드 블록 추출**
 
 ```bash
 python3 -c "
@@ -307,7 +307,7 @@ print('written', len(blocks[0]), 'chars from', len(blocks), 'blocks')
 
 Expected: `written N chars from M blocks` 출력(N>0). 본체 코드가 첫 번째 ```typescript 블록이어야 한다 — 만약 `blocks[0]`이 본체가 아니면 올바른 인덱스를 확인해서 그 인덱스를 쓴다.
 
-- [ ] **Step 2: tsconfig.json 백업 후 임시 수정**
+- [x] **Step 2: tsconfig.json 백업 후 임시 수정**
 
 ```bash
 cp tsconfig.json tsconfig.json.bak
@@ -320,7 +320,7 @@ json.dump(c, open('tsconfig.json','w', encoding='utf-8'), indent=4)
 "
 ```
 
-- [ ] **Step 3: tsc 실행**
+- [x] **Step 3: tsc 실행**
 
 ```bash
 npx tsc --noEmit -p tsconfig.json
@@ -328,7 +328,7 @@ npx tsc --noEmit -p tsconfig.json
 
 Expected: `tsconfig.json(3,19): error TS5107: Option 'target=ES5' is deprecated...` 경고 1줄만 출력되고, `_wander_check.ts` 관련 타입 에러(TS2304/TS2339 등)는 0건. 특히 `DigitalPin.P13`/`DigitalPin.P14`/`maqueenPlusV2.readUltrasonic`가 타입 에러 없이 인식되는지 확인한다. 에러가 있으면 해당 태스크 코드로 돌아가 수정 후 이 Step부터 재실행한다.
 
-- [ ] **Step 4: 원상복구**
+- [x] **Step 4: 원상복구**
 
 ```bash
 mv tsconfig.json.bak tsconfig.json

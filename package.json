@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "pxt-microbit": "^8.1.25",
+    "typescript": "^6.0.3"
+  }
+}

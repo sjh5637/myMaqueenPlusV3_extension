@@ -29,6 +29,27 @@ This library supports both Maqueen Plus V2 and V3. Below is a comparison of thei
 | **Motor Interface** | Fixed (일체형) | **Detachable (탈착식 N20 모터)** | V3 하드웨어 개선 |
 | **Unihiker K10 Support** | × | **✔ Supported** | V3 확장성 개선 |
 
+## 🚗 Autonomous Matrix LiDAR Example (자율주행 예제)
+
+See [`AUTONOMOUS_WANDER_EXAMPLE.md`](./AUTONOMOUS_WANDER_EXAMPLE.md) for the current
+Maqueen Plus V3 autonomous driving example using the 8×8 Matrix LiDAR and DFRobot DFR0997
+LCD.
+
+현재 권장 예제는 `Matrix.MAT` 8×8 모드에서 대표 LiDAR 빔을 직접 읽고, DFR0997 LCD를
+I2C 주소 `0x2c`로 직접 제어합니다. 기본 구성은 Matrix LiDAR `Addr4(0x33)`입니다.
+
+Current operation flow:
+
+1. `A+B`: set LiDAR mounting height (`100~180mm`, default `140mm`)
+2. `A`: floor and sensor-angle calibration
+3. `B`: 3-second countdown, 360-degree scan, then autonomous driving
+
+LCD status includes height, calibration result, `ANGLE OK`/`RAISE SENSOR`/`LOWER SENSOR`,
+initial scan score, best direction, and live `L/F/R` distance summaries. The 5x5 micro:bit
+LED shows the same L/F/R proximity as per-column brightness. The driving example also adapts
+forward distance: it gradually lengthens clean movement and shortens movement after obstacle
+avoidance or stuck detection.
+
 ## 🎨 Customized & Added Features (추가 및 변경 기능)
 
 This customized version expands the original library with more color choices and rich LED animations.  
