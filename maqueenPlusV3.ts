@@ -16,7 +16,7 @@ const enum PatrolSpeed {
  * Custom graphic block
  */
 //% weight=100 color=#0fbc11 icon="\uf067" block="MaqueenPlusV3"
-//% groups="['Setup', 'Motor', 'LED', 'Sensors', 'NeoPixel', 'V3', 'Effects']"
+//% groups="['Setup', 'Motor', 'LED', 'Sensors', 'NeoPixel', 'V3', 'Effects', 'New Features']"
 namespace maqueenPlusV2 {
 
     //Motor selection enumeration
@@ -1532,8 +1532,7 @@ namespace maqueenPlusV2 {
     //% weight=12
     //% blockId=lineMonitorStart
     //% block="start line monitor"
-    //% group="Effects"
-    //% advanced=true
+    //% group="New Features"
     export function startLineSafetyMonitor(
         pin: DigitalPin = DigitalPin.P15,
         color: number = 0,
@@ -1578,8 +1577,7 @@ namespace maqueenPlusV2 {
     //% weight=11
     //% blockId=lineMonitorStop
     //% block="stop line monitor"
-    //% group="Effects"
-    //% advanced=true
+    //% group="New Features"
     export function stopLineSafetyMonitor(pin: DigitalPin = DigitalPin.P15): void {
         safetyMonitorActive = false;
     }
@@ -1592,8 +1590,7 @@ namespace maqueenPlusV2 {
     //% blockId=onLineDeviated
     //% block="when line deviated"
     //% handlerStatement=1
-    //% group="Effects"
-    //% advanced=true
+    //% group="New Features"
     export function onLineDeviated(callback: () => void): void {
         control.onEvent(LINE_DEVIATED_EVENT_SOURCE, LINE_DEVIATED_EVENT_VALUE, callback);
     }

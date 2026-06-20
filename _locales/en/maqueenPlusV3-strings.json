@@ -112,6 +112,7 @@
     "{id:group}NeoPixel": "NeoPixel",
     "{id:group}V3": "V3",
     "{id:group}Effects": "Effects",
+    "{id:group}New Features": "... New Features",
     "maqueenPlusV2.NeoPixelIndex.LED1|block": "1 (Left Front)",
     "maqueenPlusV2.NeoPixelIndex.LED2|block": "2 (Left Rear)",
     "maqueenPlusV2.NeoPixelIndex.LED3|block": "3 (Right Rear)",

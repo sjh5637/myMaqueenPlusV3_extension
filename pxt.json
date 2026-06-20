@@ -1,6 +1,6 @@
 {
     "name": "maqueenPlusV3",
-    "version": "2.2.32",
+    "version": "2.2.33",
     "description": "This is the latest version of Maqueen Plus, a programming robot for STEAM education.",
     "license": "MIT",
     "dependencies": {
@@ -29,7 +29,7 @@
         "_locales/ko/maqueenPlusV3-jsdoc-strings.json",
         "_locales/en/maqueenPlusV3-strings.json",
         "_locales/en/maqueenPlusV3-jsdoc-strings.json",
-        "maqueenPlusV2.ts"
+        "maqueenPlusV3.ts"
     ],
     "testFiles": [
         "test.ts"

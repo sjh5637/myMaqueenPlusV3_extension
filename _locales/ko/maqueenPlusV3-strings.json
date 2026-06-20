@@ -112,6 +112,7 @@
     "{id:group}NeoPixel": "네오픽셀 RGB",
     "{id:group}V3": "V3 전용 기능",
     "{id:group}Effects": "애니메이션 효과",
+    "{id:group}New Features": "... 새기능",
     "maqueenPlusV2.NeoPixelIndex.LED1|block": "1 (앞쪽 왼쪽)",
     "maqueenPlusV2.NeoPixelIndex.LED2|block": "2 (뒤쪽 왼쪽)",
     "maqueenPlusV2.NeoPixelIndex.LED3|block": "3 (뒤쪽 오른쪽)",
