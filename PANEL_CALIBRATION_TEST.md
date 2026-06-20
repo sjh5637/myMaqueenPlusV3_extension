@@ -252,6 +252,20 @@ function lcd요약표시(): void {
     lcd문자(5, 8, 168, "SEE RADIO LOG", 0xff8800)
 }
 
+function lcd기울기보정표시(값들: number[], 차이mm: number, 편차mm: number): void {
+    let 값줄 = ""
+    for (let i = 0; i < 값들.length; i++) {
+        if (i > 0) 값줄 += " "
+        값줄 += 값들[i]
+    }
+    let 차이부호 = 차이mm > 0 ? "+" : ""
+    lcd문자(1, 8, 16, "TILT CAL", 0x000000)
+    lcd문자(2, 8, 54, 값줄, 0x0000ff)
+    lcd문자(3, 8, 92, "DIFF " + 차이부호 + 차이mm + "mm", 0x008000)
+    lcd문자(4, 8, 130, "SPREAD " + 편차mm + "mm", 0xaa00aa)
+    lcd문자(5, 8, 168, "A=STOP", 0x000000)
+}
+
 function 그리드3회읍기(): number[][][] {
     let 결과: number[][][] = []
     for (let n = 0; n < 그리드샘플반복; n++) {
