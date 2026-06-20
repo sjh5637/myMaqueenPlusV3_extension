@@ -321,7 +321,7 @@ input.onButtonPressed(Button.B, function () {
 - [ ] 스텝 0에서 L/C/R 값이 0(미인식) 또는 비정상적으로 작은 값으로
       나오는 것을 확인했는가(정상 — 센서 최소 인식 거리 추정용).
 - [ ] 테스트 종료 시 5x5 매트릭스에 완료(Yes) 아이콘이 표시되고, SUMMARY로
-      시작하는 7줄(MinDist, MaxErr L/C/R/U, Asymmetry, JumpL/C/R)이
-      수신되는가.
+      시작하는 9줄(MinDist 1줄, MaxErr L/C/R/U 4줄, Asymmetry 1줄,
+      JumpL/C/R 3줄)이 수신되는가.
 - [ ] SUMMARY MinDist 값이 실제로 센서가 안정적으로 값을 내기 시작한
       거리와 대략 일치하는가(줄자 기준 육안 확인).
