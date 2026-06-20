@@ -102,6 +102,7 @@ const 기본감지거리mm = 430
 const 정면여유mm = 90
 const 측면여유mm = 70
 const 긴급정지거리mm = 280
+const 라이다무효값mm = 4000
 const 막힘연속필요 = 2
 const 전진거리cm = 8
 const 최소전진거리cm = 4
@@ -329,8 +330,12 @@ function 로봇초기화(): void {
     lcd문자(3, 8, 92, "B = TILT CAL", 0x008000)
 }
 
+function 유효거리(원시값: number): number {
+    return 원시값 >= 라이다무효값mm ? 0 : 원시값
+}
+
 function 거리읽기(index: number): number {
-    return matrixLidarDistance.matrixPointOutput(라이다주소, 샘플X[index], 샘플Y[index])
+    return 유효거리(matrixLidarDistance.matrixPointOutput(라이다주소, 샘플X[index], 샘플Y[index]))
 }
 
 function 전체샘플읽기(): void {
@@ -403,7 +408,7 @@ function 높이변경(): void {
 }
 
 function 지점읽기(x: number, y: number): number {
-    return matrixLidarDistance.matrixPointOutput(라이다주소, x, y)
+    return 유효거리(matrixLidarDistance.matrixPointOutput(라이다주소, x, y))
 }
 
 function 트인거리값(거리: number): number {
