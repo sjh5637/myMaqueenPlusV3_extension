@@ -70,4 +70,55 @@ function 지점읽기(x: number, y: number): number {
 function 로그(내용: string): void {
     radio.sendString(input.runningTime() + "ms " + 내용)
 }
+
+function 그리드3회읍기(): number[][][] {
+    let 결과: number[][][] = []
+    for (let n = 0; n < 그리드샘플반복; n++) {
+        let 그리드: number[][] = []
+        for (let y = 0; y < 8; y++) {
+            let 행: number[] = []
+            for (let x = 0; x < 8; x++) 행.push(지점읽기(x, y))
+            그리드.push(행)
+        }
+        결과.push(그리드)
+    }
+    return 결과
+}
+
+function 셀값목록(샘플들: number[][][], x: number, y: number): number[] {
+    let 목록: number[] = []
+    for (let n = 0; n < 샘플들.length; n++) 정렬삽입(목록, 샘플들[n][y][x])
+    return 목록
+}
+
+function 중앙값그리드(샘플들: number[][][]): number[][] {
+    let 결과: number[][] = []
+    for (let y = 0; y < 8; y++) {
+        let 행: number[] = []
+        for (let x = 0; x < 8; x++) 행.push(중앙값(셀값목록(샘플들, x, y)))
+        결과.push(행)
+    }
+    return 결과
+}
+
+function 구역median(그리드: number[][], 컬럼들: number[], 행들: number[]): number {
+    let 목록: number[] = []
+    for (let yi = 0; yi < 행들.length; yi++) {
+        for (let xi = 0; xi < 컬럼들.length; xi++) {
+            정렬삽입(목록, 그리드[행들[yi]][컬럼들[xi]])
+        }
+    }
+    return 중앙값(목록)
+}
+
+function 구역노이즈(샘플들: number[][][], 컬럼들: number[], 행들: number[]): number {
+    let 최대범위 = 0
+    for (let yi = 0; yi < 행들.length; yi++) {
+        for (let xi = 0; xi < 컬럼들.length; xi++) {
+            let 범위 = 범위값(셀값목록(샘플들, 컬럼들[xi], 행들[yi]))
+            if (범위 > 최대범위) 최대범위 = 범위
+        }
+    }
+    return 최대범위
+}
 ```
