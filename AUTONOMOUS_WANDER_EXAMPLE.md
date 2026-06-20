@@ -747,11 +747,12 @@ function 바닥보정(): void {
 }
 
 input.onButtonPressed(Button.A, function () {
-    보정요청 = true
+    기울기보정모드중 = false
+    출발요청 = true
 })
 
 input.onButtonPressed(Button.B, function () {
-    출발요청 = true
+    if (!주행시작됨) 기울기보정모드중 = true
 })
 
 input.onButtonPressed(Button.AB, function () {
