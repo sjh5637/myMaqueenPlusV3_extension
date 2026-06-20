@@ -191,12 +191,16 @@ let 마지막정밀확인시각 = 0
 let 적응전진거리cm = 전진거리cm
 let 전진성공연속 = 0
 let 마지막맵시각 = 0
+let 초음파사용 = true
+let 최근초음파mm = 0
 let LCD맵사용 = true
 let LCD맵이전색: number[] = []
 let 마지막하트비트시각 = 0
 
 const 디버그모드 = true       // 무선 콘솔 디버그 on/off. 문제 없으면 false로 끄고 사용
 const 라디오그룹 = 77
+const 초음파TRIG = DigitalPin.P13
+const 초음파ECHO = DigitalPin.P14
 const 하트비트간격ms = 1000
 const LCD맵칸쓰기지연ms = 5
 
@@ -511,6 +515,20 @@ function 구역최소(구역: number): number {
         if (샘플구역[i] == 구역) 최소 = Math.min(최소, 트인거리값(최근값[i]))
     }
     return 최소 == 9999 ? 0 : 최소
+}
+
+function 초음파읍기(): number {
+    if (!초음파사용) return 0
+    let cm = maqueenPlusV2.readUltrasonic(초음파TRIG, 초음파ECHO)
+    return cm <= 0 ? 0 : cm * 10
+}
+
+function 정면최소거리(): number {
+    let 라이다값 = 구역최소(1)
+    let a = 라이다값 > 0 ? 라이다값 : 9999
+    let b = 최근초음파mm > 0 ? 최근초음파mm : 9999
+    let 결과 = Math.min(a, b)
+    return 결과 == 9999 ? 0 : 결과
 }
 
 function 높이최소(높이: number): number {
