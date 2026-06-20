@@ -903,35 +903,28 @@ function 각도순회탐색(각도목록: number[]): number {
 function 재탐색180(탈출모드: boolean): boolean {
     감시모드 = 탈출모드 ? "ESCAPE" : "RESCAN"
     상태 = 탈출모드 ? "탈출탐색" : "재탐색"
-    let 최고점수 = -999999
-    let 최고각 = 0
     maqueenPlusV2.pidControlStop()
-    maqueenPlusV2.pidControlAngle(-90, maqueenPlusV2.MyInterruption.NotAllowed)
-    for (let i = 0; i < 재탐색각도.length; i++) {
-        let 후보각 = 재탐색각도[i]
-        let 점수 = 탐색점수(후보각)
-        if (점수 > 최고점수) {
-            최고점수 = 점수
-            최고각 = 후보각
-        }
-        lcd문자(1, 8, 16, 감시모드 + " " + (i + 1) + "/" + 재탐색각도.length, 0x000000)
-        lcd문자(2, 8, 54, "DIR " + 후보각, 0x0000ff)
-        lcd문자(3, 8, 92, "SCORE " + 점수, 0x008000)
-        lcd문자(4, 8, 130, "BEST " + 최고각, 0xaa00aa)
-        로그(감시모드 + " DIR " + 후보각 + " SCORE " + 점수)
-        if (i < 재탐색각도.length - 1) {
-            maqueenPlusV2.pidControlAngle(45, maqueenPlusV2.MyInterruption.NotAllowed)
-        }
-    }
-    예약회전각 = 최고각 - 90
-    마지막판단 = "BEST " + 최고각
-    로그(감시모드 + " BEST " + 최고각 + " SCORE " + 최고점수)
-    maqueenPlusV2.pidControlAngle(예약회전각, maqueenPlusV2.MyInterruption.NotAllowed)
-    회전기록(예약회전각)
-    basic.pause(300)
-    마지막탐색점수 = 최고점수
-    if (최고점수 < 재탐색최소점수) return false
-    return 방향안전확인()
+
+    let 최고각 = 각도순회탐색(재탐색각도)
+    if (마지막탐색점수 >= 재탐색최소점수 && 방향안전확인()) return true
+    maqueenPlusV2.pidControlAngle(-최고각, maqueenPlusV2.MyInterruption.NotAllowed)
+
+    감시모드 = 탈출모드 ? "ESCAPE-FINE" : "RESCAN-FINE"
+    최고각 = 각도순회탐색(재탐색각도세밀)
+    if (마지막탐색점수 >= 재탐색최소점수 && 방향안전확인()) return true
+    maqueenPlusV2.pidControlAngle(-최고각, maqueenPlusV2.MyInterruption.NotAllowed)
+
+    감시모드 = 탈출모드 ? "ESCAPE-BACK-R" : "RESCAN-BACK-R"
+    최고각 = 각도순회탐색(재탐색각도세밀후방우)
+    if (마지막탐색점수 >= 재탐색최소점수 && 방향안전확인()) return true
+    maqueenPlusV2.pidControlAngle(-최고각, maqueenPlusV2.MyInterruption.NotAllowed)
+
+    감시모드 = 탈출모드 ? "ESCAPE-BACK-L" : "RESCAN-BACK-L"
+    최고각 = 각도순회탐색(재탐색각도세밀후방좌)
+    if (마지막탐색점수 >= 재탐색최소점수 && 방향안전확인()) return true
+
+    로그("ALL 360 FINE STAGES FAILED -> NO SAFE DIR")
+    return false
 }
 
 function 탈출탐색(): void {
