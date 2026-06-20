@@ -115,6 +115,7 @@ const 거리허용오차mm = 15
 const 컬럼편차참고mm = 10
 const 목표거리mm = Math.round(Math.sqrt(보정후진거리mm * 보정후진거리mm + 기본라이더높이mm * 기본라이더높이mm))
 const 기울기갱신지연ms = 150
+const 라이다무효값mm = 4000
 
 radio.setGroup(라디오그룹)
 radio.setTransmitPower(7)
@@ -294,7 +295,7 @@ function 기울기보정틱(): void {
     for (let x = 0; x < 8; x++) {
         let 값 = 지점읽기(x, 7)
         값들.push(값)
-        if (값 != 0) 정렬삽입(유효목록, 값)
+        if (값 != 0 && 값 < 라이다무효값mm) 정렬삽입(유효목록, 값)
     }
 
     let 중간값 = 중앙값(유효목록)
