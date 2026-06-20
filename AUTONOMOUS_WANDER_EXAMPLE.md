@@ -137,12 +137,6 @@ const 주기재탐색추가ms = 10000
 const 재탐색최소점수 = 2500
 const 실패방향감점 = 700
 const 회전비용계수 = 5
-const LCD맵갱신간격ms = 1000
-const LCD맵X = 8
-const LCD맵Y = 8
-const LCD맵칸 = 14
-const LCD맵간격 = 2
-const LCD맵ID시작 = 20
 
 let 샘플X = [1, 1, 1, 3, 4, 3, 4, 3, 4, 6, 6, 6]
 let 샘플Y = [1, 3, 5, 1, 1, 3, 3, 5, 5, 1, 3, 5]
@@ -190,11 +184,8 @@ let 마지막탐색점수 = 0
 let 마지막정밀확인시각 = 0
 let 적응전진거리cm = 전진거리cm
 let 전진성공연속 = 0
-let 마지막맵시각 = 0
 let 초음파사용 = true
 let 최근초음파mm = 0
-let LCD맵사용 = true
-let LCD맵이전색: number[] = []
 let 마지막하트비트시각 = 0
 
 const 디버그모드 = true       // 무선 콘솔 디버그 on/off. 문제 없으면 false로 끄고 사용
@@ -272,30 +263,6 @@ function lcd문자(번호: number, x: number, y: number, 내용: string, 색: nu
     lcd명령(0x18, 데이터)
 }
 
-function lcd사각형(id: number, x: number, y: number, w: number, h: number, 색: number): void {
-    let 데이터 = [
-        id,
-        1,
-        0x22,
-        0x22,
-        0x22,
-        1,
-        (색 >> 16) & 0xff,
-        (색 >> 8) & 0xff,
-        색 & 0xff,
-        0,
-        (x >> 8) & 0xff,
-        x & 0xff,
-        (y >> 8) & 0xff,
-        y & 0xff,
-        (w >> 8) & 0xff,
-        w & 0xff,
-        (h >> 8) & 0xff,
-        h & 0xff
-    ]
-    lcd명령(0x04, 데이터)
-}
-
 function lcd표시(강제: boolean): void {
     if (!강제 && input.runningTime() - 마지막LCD시각 < LCD갱신간격ms) return
     마지막LCD시각 = input.runningTime()
@@ -305,7 +272,6 @@ function lcd표시(강제: boolean): void {
     lcd문자(3, 140, 16, "FWD " + 적응전진거리cm + "cm", 0x008000)
     lcd문자(4, 140, 54, "L" + 구역최소(0) + " F" + 구역최소(1) + " R" + 구역최소(2) + " U" + 최근초음파mm, 0xaa00aa)
     lcd문자(5, 140, 92, 각도상태 + " N" + 보정노이즈, 각도색())
-    lcd레이더맵표시(false)
 }
 
 function lcd대기표시(강제: boolean): void {
@@ -446,42 +412,6 @@ function 전진성공기록(): void {
         적응전진거리cm = Math.min(최대전진거리cm, 적응전진거리cm + 전진성공증가cm)
         전진성공연속 = 0
     }
-}
-
-function 거리색(거리: number): number {
-    if (거리 == 0) return 0x202020
-    if (거리 < 긴급정지거리mm) return 0xff0000
-    if (거리 < 320) return 0xff9900
-    if (거리 < 520) return 0xffff00
-    if (거리 < 800) return 0x00cc00
-    return 0x0066ff
-}
-
-function lcd레이더맵표시(강제: boolean): void {
-    if (!LCD맵사용) return
-    if (!강제 && input.runningTime() - 마지막맵시각 < LCD맵갱신간격ms) return
-    마지막맵시각 = input.runningTime()
-    if (LCD맵이전색.length != 64) {
-        LCD맵이전색 = []
-        for (let i = 0; i < 64; i++) LCD맵이전색.push(-1)
-        강제 = true
-    }
-    let 그린칸수 = 0
-    let 시작시각 = input.runningTime()
-    for (let y = 0; y < 8; y++) {
-        for (let x = 0; x < 8; x++) {
-            let 거리 = 지점읽기(x, y)
-            let 색 = 거리색(거리)
-            let 칸번호 = y * 8 + x
-            if (!강제 && LCD맵이전색[칸번호] == 색) continue
-            LCD맵이전색[칸번호] = 색
-            let px = LCD맵X + x * (LCD맵칸 + LCD맵간격)
-            let py = LCD맵Y + y * (LCD맵칸 + LCD맵간격)
-            lcd사각형(LCD맵ID시작 + 칸번호, px, py, LCD맵칸, LCD맵칸, 색)
-            그린칸수 += 1
-        }
-    }
-    if (디버그모드 && 그린칸수 > 0) 로그("MAP drew" + 그린칸수 + " ms" + (input.runningTime() - 시작시각))
 }
 
 function 막힌샘플인가(index: number): boolean {
