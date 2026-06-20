@@ -266,6 +266,22 @@ function lcd기울기보정표시(값들: number[], 차이mm: number, 편차mm: 
     lcd문자(5, 8, 168, "A=STOP", 0x000000)
 }
 
+function 기울기보정틱(): void {
+    let 유효목록: number[] = []
+    let 값들: number[] = []
+    for (let x = 0; x < 8; x++) {
+        let 값 = 지점읽기(x, 7)
+        값들.push(값)
+        if (값 != 0) 정렬삽입(유효목록, 값)
+    }
+
+    let 중간값 = 중앙값(유효목록)
+    let 편차mm = 유효목록.length >= 2 ? (유효목록[유효목록.length - 1] - 유효목록[0]) : 0
+    let 차이mm = 중간값 - 목표거리mm
+
+    lcd기울기보정표시(값들, 차이mm, 편차mm)
+}
+
 function 그리드3회읍기(): number[][][] {
     let 결과: number[][][] = []
     for (let n = 0; n < 그리드샘플반복; n++) {
