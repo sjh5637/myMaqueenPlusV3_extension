@@ -135,5 +135,8 @@
     "maqueenPlusV2.startLineSafetyMonitor|block": "라인 감시 시작",
     "maqueenPlusV2.stopLineSafetyMonitor|block": "라인 감시 중지",
     "maqueenPlusV2.onLineDeviated|block": "라인을 벗어났을 때",
-    "maqueenPlusV2.warnWrong|block": "틀렸어요 경고하기 (소리와 불빛)"
+    "maqueenPlusV2.warnWrong|block": "틀렸어요 경고하기 (소리와 불빛)",
+    "maqueenPlusV2.I2CInitForClass|block": "I2C 통신으로 초기화 설정",
+    "maqueenPlusV2.controlMotorForClass|block": "%emotor 방향 %edir 속도 %speed 설정",
+    "maqueenPlusV2.controlMotorStopForClass|block": "%emotor 정지 설정"
 }

@@ -1533,7 +1533,7 @@ namespace maqueenPlusV2 {
     //% weight=12
     //% blockId=lineMonitorStart
     //% block="start line monitor"
-    //% subcategory="New Features"
+    //% subcategory="Class"
     export function startLineSafetyMonitor(
         pin: DigitalPin = DigitalPin.P15,
         color: number = 0,
@@ -1578,7 +1578,7 @@ namespace maqueenPlusV2 {
     //% weight=11
     //% blockId=lineMonitorStop
     //% block="stop line monitor"
-    //% subcategory="New Features"
+    //% subcategory="Class"
     export function stopLineSafetyMonitor(pin: DigitalPin = DigitalPin.P15): void {
         safetyMonitorActive = false;
     }
@@ -1591,7 +1591,7 @@ namespace maqueenPlusV2 {
     //% blockId=onLineDeviated
     //% block="when line deviated"
     //% blockGap=16
-    //% subcategory="New Features"
+    //% subcategory="Class"
     export function onLineDeviated(body: () => void): void {
         control.onEvent(LINE_DEVIATED_EVENT_SOURCE, LINE_DEVIATED_EVENT_VALUE, body);
     }
@@ -1603,7 +1603,7 @@ namespace maqueenPlusV2 {
     //% weight=9
     //% blockId=warnWrong
     //% block="warn wrong (sound and light)"
-    //% subcategory="New Features"
+    //% subcategory="Class"
     export function warnWrong(): void {
         // 모터는 호출하지 않아 제자리에 머무릅니다.
         for (let i = 0; i < 3; i++) {
@@ -1618,6 +1618,44 @@ namespace maqueenPlusV2 {
         }
         showColor(DigitalPin.P15, 0);
         controlLED(MyEnumLed.AllLed, MyEnumSwitch.Close);
+    }
+
+    /**
+     * 수업용: I2C가 성공할 때까지 초기화 (Setup의 initialize via I2C 블록과 동일하게 동작)
+     */
+    //% weight=8
+    //% blockId=I2CInitForClass
+    //% block="initialize via I2C until success"
+    //% subcategory="Class"
+    export function I2CInitForClass(): void {
+        I2CInit();
+    }
+
+    /**
+     * 수업용: 모터 방향과 속도 설정 (Motor의 set direction speed 블록과 동일하게 동작)
+     * @param emotor Motor selection enumeration
+     * @param edir   Motor direction selection enumeration
+     * @param speed  Motor speed control, eg:100
+     */
+    //% blockId=controlMotorForClass
+    //% block="set %emotor direction %edir speed %speed"
+    //% speed.min=0 speed.max=255
+    //% weight=7
+    //% subcategory="Class"
+    export function controlMotorForClass(emotor: MyEnumMotor, edir: MyEnumDir, speed: number): void {
+        controlMotor(emotor, edir, speed);
+    }
+
+    /**
+     * 수업용: 모터 정지 (Motor의 set stop 블록과 동일하게 동작)
+     * @param emotor Motor selection enumeration
+     */
+    //% blockId=controlMotorStopForClass
+    //% block="set %emotor stop"
+    //% weight=6
+    //% subcategory="Class"
+    export function controlMotorStopForClass(emotor: MyEnumMotor): void {
+        controlMotorStop(emotor);
     }
 
 }

@@ -135,5 +135,8 @@
     "maqueenPlusV2.startLineSafetyMonitor|block": "start line monitor",
     "maqueenPlusV2.stopLineSafetyMonitor|block": "stop line monitor",
     "maqueenPlusV2.onLineDeviated|block": "when line deviated",
-    "maqueenPlusV2.warnWrong|block": "warn wrong (sound and light)"
+    "maqueenPlusV2.warnWrong|block": "warn wrong (sound and light)",
+    "maqueenPlusV2.I2CInitForClass|block": "Initialize Maqueen Plus",
+    "maqueenPlusV2.controlMotorForClass|block": "Set %emotor direction %edir speed %speed",
+    "maqueenPlusV2.controlMotorStopForClass|block": "Set %emotor stop"
 }
