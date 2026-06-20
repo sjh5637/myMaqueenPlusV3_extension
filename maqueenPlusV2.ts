@@ -1529,7 +1529,7 @@ namespace maqueenPlusV2 {
      * Start monitoring if the robot deviates from the black line (V2 & V3 compatible).
      * When it deviates, the "on line deviated" event is raised.
      */
-    //% weight=4
+    //% weight=12
     //% blockId=lineMonitorStart
     //% block="start line monitor"
     //% group="Effects"
@@ -1575,7 +1575,7 @@ namespace maqueenPlusV2 {
     /**
      * Stop the line safety monitor
      */
-    //% weight=3
+    //% weight=11
     //% blockId=lineMonitorStop
     //% block="stop line monitor"
     //% group="Effects"
@@ -1588,7 +1588,7 @@ namespace maqueenPlusV2 {
      * Run code when the robot deviates from the black line.
      * @param callback code to run when line is deviated
      */
-    //% weight=2
+    //% weight=10
     //% blockId=onLineDeviated
     //% block="when line deviated"
     //% handlerStatement=1
