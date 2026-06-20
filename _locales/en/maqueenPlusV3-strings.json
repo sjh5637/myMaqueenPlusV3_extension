@@ -113,6 +113,8 @@
     "{id:group}V3": "V3",
     "{id:group}Effects": "Effects",
     "{id:group}New Features": "... New Features",
+    "{id:subcategory}New Features": "New Features",
+    "{id:subcategory}Class": "Class",
     "maqueenPlusV2.NeoPixelIndex.LED1|block": "1 (Left Front)",
     "maqueenPlusV2.NeoPixelIndex.LED2|block": "2 (Left Rear)",
     "maqueenPlusV2.NeoPixelIndex.LED3|block": "3 (Right Rear)",
@@ -132,5 +134,6 @@
     "maqueenPlusV2.expressEmotion|block": "express emotion %emotion",
     "maqueenPlusV2.startLineSafetyMonitor|block": "start line monitor",
     "maqueenPlusV2.stopLineSafetyMonitor|block": "stop line monitor",
-    "maqueenPlusV2.onLineDeviated|block": "when line deviated"
+    "maqueenPlusV2.onLineDeviated|block": "when line deviated",
+    "maqueenPlusV2.warnWrong|block": "warn wrong (sound and light)"
 }

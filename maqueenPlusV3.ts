@@ -17,6 +17,7 @@ const enum PatrolSpeed {
  */
 //% weight=100 color=#0fbc11 icon="\uf067" block="MaqueenPlusV3"
 //% groups="['Setup', 'Motor', 'LED', 'Sensors', 'NeoPixel', 'V3', 'Effects', 'New Features']"
+//% subcategories="['New Features', 'Class']"
 namespace maqueenPlusV2 {
 
     //Motor selection enumeration
@@ -733,9 +734,9 @@ namespace maqueenPlusV2 {
         let h2 = Math.idiv((h - h1 * 60) * 256, 60);//[0,255]
         let temp = Math.abs((((h1 % 2) << 8) + h2) - 256);
         let x = (c * (256 - (temp))) >> 8;//[0,255], second largest component of this color
-        let r$: number;
-        let g$: number;
-        let b$: number;
+        let r$: number = 0;
+        let g$: number = 0;
+        let b$: number = 0;
         if (h1 == 0) {
             r$ = c; g$ = x; b$ = 0;
         } else if (h1 == 1) {
@@ -1329,7 +1330,7 @@ namespace maqueenPlusV2 {
     //% weight=5
     //% blockId=expressEmotion
     //% block="express emotion %emotion"
-    //% group="Effects"
+    //% subcategory="Class"
     export function expressEmotion(emotion: MyEmotion): void {
         stopAnimations(DigitalPin.P15);
 
@@ -1532,7 +1533,7 @@ namespace maqueenPlusV2 {
     //% weight=12
     //% blockId=lineMonitorStart
     //% block="start line monitor"
-    //% group="New Features"
+    //% subcategory="New Features"
     export function startLineSafetyMonitor(
         pin: DigitalPin = DigitalPin.P15,
         color: number = 0,
@@ -1577,7 +1578,7 @@ namespace maqueenPlusV2 {
     //% weight=11
     //% blockId=lineMonitorStop
     //% block="stop line monitor"
-    //% group="New Features"
+    //% subcategory="New Features"
     export function stopLineSafetyMonitor(pin: DigitalPin = DigitalPin.P15): void {
         safetyMonitorActive = false;
     }
@@ -1590,9 +1591,33 @@ namespace maqueenPlusV2 {
     //% blockId=onLineDeviated
     //% block="when line deviated"
     //% blockGap=16
-    //% group="New Features"
+    //% subcategory="New Features"
     export function onLineDeviated(body: () => void): void {
         control.onEvent(LINE_DEVIATED_EVENT_SOURCE, LINE_DEVIATED_EVENT_VALUE, body);
+    }
+
+    /**
+     * 제자리에서 소리와 빨간 불빛으로 "틀렸다"는 경고만 표시합니다. 모터는 움직이지 않습니다. (V2 & V3 호환)
+     * Warn that something is wrong using only sound and red light, without moving the robot (V2 & V3 compatible).
+     */
+    //% weight=9
+    //% blockId=warnWrong
+    //% block="warn wrong (sound and light)"
+    //% subcategory="New Features"
+    export function warnWrong(): void {
+        // 모터는 호출하지 않아 제자리에 머무릅니다.
+        for (let i = 0; i < 3; i++) {
+            showColor(DigitalPin.P15, NeoPixelColors.Red);
+            controlLED(MyEnumLed.AllLed, MyEnumSwitch.Open);
+            music.playTone(196, 150); // G3
+            music.playTone(165, 200); // E3
+
+            showColor(DigitalPin.P15, 0);
+            controlLED(MyEnumLed.AllLed, MyEnumSwitch.Close);
+            basic.pause(120);
+        }
+        showColor(DigitalPin.P15, 0);
+        controlLED(MyEnumLed.AllLed, MyEnumSwitch.Close);
     }
 
 }

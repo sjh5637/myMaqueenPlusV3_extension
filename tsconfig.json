@@ -3,7 +3,15 @@
         "target": "es5",
         "noImplicitAny": true,
         "outDir": "built",
-        "rootDir": "."
+        "rootDir": ".",
+        "skipLibCheck": true
     },
-    "exclude": ["pxt_modules/**/*test.ts"]
+    "files": [
+        "maqueenPlusV3.ts",
+        "pxt-editor-shims.d.ts",
+        "pxt_modules/core/dal.d.ts",
+        "pxt_modules/core/enums.d.ts",
+        "pxt_modules/core/shims.d.ts",
+        "pxt_modules/ws2812b/main.ts"
+    ]
 }
