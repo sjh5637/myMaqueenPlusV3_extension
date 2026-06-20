@@ -192,4 +192,58 @@ function 스텝측정(스텝번호: number): void {
     이전중앙값 = 중앙값값
     이전우값 = 우값
 }
+
+function 최소인식거리(결과: number[]): number {
+    for (let i = 0; i < 결과.length - 1; i++) {
+        if (결과[i] != 0 && 결과[i + 1] != 0 && Math.abs(결과[i + 1] - 결과[i]) <= 큐브테스트_점프임계mm) {
+            return i * 10
+        }
+    }
+    return -1
+}
+
+function 최대오차스텝(d결과: number[]): string {
+    let 최대값 = -1
+    let 최대스텝 = -1
+    for (let i = 0; i < d결과.length; i++) {
+        if (d결과[i] == dN_A) continue
+        if (Math.abs(d결과[i]) > 최대값) {
+            최대값 = Math.abs(d결과[i])
+            최대스텝 = i
+        }
+    }
+    return 최대스텝 < 0 ? "N/A" : ("step" + 최대스텝 + " d=" + d결과[최대스텝])
+}
+
+function 점프목록(jump결과: boolean[]): string {
+    let 목록 = ""
+    for (let i = 0; i < jump결과.length; i++) {
+        if (jump결과[i]) 목록 += i + ","
+    }
+    return 목록 == "" ? "none" : 목록
+}
+
+function 테스트요약(): void {
+    로그("SUMMARY MinDist L=" + 최소인식거리(좌결과) + "mm C=" + 최소인식거리(중앙결과) + "mm R=" + 최소인식거리(우결과) + "mm")
+    로그("SUMMARY MaxErr L:" + 최대오차스텝(dL결과))
+    로그("SUMMARY MaxErr C:" + 최대오차스텝(dC결과))
+    로그("SUMMARY MaxErr R:" + 최대오차스텝(dR결과))
+    로그("SUMMARY MaxErr U:" + 최대오차스텝(dU결과))
+
+    let 최대비대칭 = -1
+    let 비대칭스텝 = -1
+    for (let i = 0; i < dL결과.length; i++) {
+        if (dL결과[i] == dN_A || dR결과[i] == dN_A) continue
+        let 차이 = Math.abs(dL결과[i] - dR결과[i])
+        if (차이 > 최대비대칭) {
+            최대비대칭 = 차이
+            비대칭스텝 = i
+        }
+    }
+    로그("SUMMARY Asymmetry step=" + 비대칭스텝 + " diffLR=" + 최대비대칭)
+
+    로그("SUMMARY JumpL " + 점프목록(좌JUMP))
+    로그("SUMMARY JumpC " + 점프목록(중앙JUMP))
+    로그("SUMMARY JumpR " + 점프목록(우JUMP))
+}
 ```
