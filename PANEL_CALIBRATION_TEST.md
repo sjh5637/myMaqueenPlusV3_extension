@@ -12,6 +12,8 @@
 3. 아래 코드를 새 MakeCode 프로젝트에 붙여넣고 다운로드한다.
 4. 별도 수신기 마이크로비트(라디오 그룹 77)로 로그를 캡처한다.
 5. B 버튼을 눌러 시작한다.
+6. 진행 중 비상 정지가 필요하면 A 버튼을 누른다 — 즉시 모터를 멈추고
+   테스트를 중단한다.
 
 ```typescript
 // ===== 차폭 패널 LiDAR/초음파 보정 테스트 =====
@@ -28,6 +30,7 @@ let 이전좌값 = -1
 let 이전중앙값 = -1
 let 이전우값 = -1
 let 시작됨 = false
+let 중단요청 = false
 
 let 좌결과: number[] = []
 let 중앙결과: number[] = []
@@ -257,6 +260,7 @@ function 로봇초기화_테스트(): void {
 
 function 보정테스트시작(): void {
     시작됨 = true
+    중단요청 = false
     이전좌값 = -1
     이전중앙값 = -1
     이전우값 = -1
@@ -279,6 +283,15 @@ function 보정테스트시작(): void {
     basic.clearScreen()
 
     for (let 스텝 = 0; 스텝 <= 최대거리cm; 스텝++) {
+        if (중단요청) {
+            maqueenPlusV2.pidControlStop()
+            로그("CALTEST ABORTED at step " + 스텝)
+            basic.showIcon(IconNames.No)
+            basic.pause(500)
+            basic.clearScreen()
+            시작됨 = false
+            return
+        }
         if (스텝 > 0) {
             maqueenPlusV2.pidControlDistance(maqueenPlusV2.SpeedDirection.SpeedCCW, 1, maqueenPlusV2.MyInterruption.NotAllowed)
         }
@@ -295,6 +308,13 @@ function 보정테스트시작(): void {
 
 input.onButtonPressed(Button.B, function () {
     if (!시작됨) 보정테스트시작()
+})
+
+input.onButtonPressed(Button.A, function () {
+    if (시작됨) {
+        중단요청 = true
+        maqueenPlusV2.pidControlStop()
+    }
 })
 
 로봇초기화_테스트()
@@ -314,6 +334,8 @@ input.onButtonPressed(Button.B, function () {
 
 - [ ] 부팅 직후 5x5 매트릭스에 대기 아이콘이 표시되는가.
 - [ ] B 버튼을 누르면 3, 2, 1 숫자가 순서대로 표시되는가.
+- [ ] 진행 중 A 버튼을 누르면 모터가 즉시 멈추고, 5x5 매트릭스에 중단(No)
+      아이콘이 표시되며, 라디오로 `CALTEST ABORTED at step N`이 수신되는가.
 - [ ] 각 스텝마다 로봇이 정확히 1cm씩 후진하는지 줄자로 대조했을 때, 예상
       스텝 위치(0~30cm)와 실제 위치가 육안으로 일치하는가.
 - [ ] 수신기 콘솔에 스텝 0~30 각각 9줄(헤더 1줄 + ROW0~ROW7) 총 279줄의
