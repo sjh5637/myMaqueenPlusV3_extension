@@ -277,6 +277,7 @@ function lcd표시(강제: boolean): void {
 function lcd대기표시(강제: boolean): void {
     if (!강제 && input.runningTime() - 마지막LCD시각 < LCD갱신간격ms) return
     마지막LCD시각 = input.runningTime()
+    basic.clearScreen()
     lcd문자(1, 8, 16, "HEIGHT " + 라이더높이mm + "mm", 0x000000)
     lcd문자(2, 8, 54, "A START  B TILT CAL", 0x0000ff)
     lcd문자(3, 8, 92, "A+B HEIGHT", 0x008000)
@@ -1012,6 +1013,7 @@ basic.forever(function () {
 
     감시샘플읽기()
     막힘연속갱신()
+    LED레이더표시()
     let 정면위험상태 = 정면위험()
 
     if (감시모드 == "FAST" && 정면위험상태) {
