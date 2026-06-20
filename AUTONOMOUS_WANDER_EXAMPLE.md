@@ -167,11 +167,9 @@ let 마지막LCD시각 = 0
 let 상태 = "BOOT"
 let 마지막판단 = "INIT"
 let 연속막힘 = 0
-let 보정요청 = false
 let 출발요청 = false
 let 높이변경요청 = false
 let 기울기보정모드중 = false
-let 보정완료 = false
 let 주행시작됨 = false
 let 라이더높이mm = 기본라이더높이mm
 let 각도상태 = "ANGLE ?"
@@ -309,10 +307,10 @@ function lcd대기표시(강제: boolean): void {
     if (!강제 && input.runningTime() - 마지막LCD시각 < LCD갱신간격ms) return
     마지막LCD시각 = input.runningTime()
     lcd문자(1, 8, 16, "HEIGHT " + 라이더높이mm + "mm", 0x000000)
-    lcd문자(2, 8, 54, "A CAL  B START", 0x0000ff)
+    lcd문자(2, 8, 54, "A START  B TILT CAL", 0x0000ff)
     lcd문자(3, 8, 92, "A+B HEIGHT", 0x008000)
     lcd문자(4, 8, 130, "Y5 " + 보정Y5 + " Y6 " + 보정Y6 + " Y7 " + 보정Y7, 0xaa00aa)
-    lcd문자(5, 8, 168, 보정완료 ? 각도상태 : "PRESS A CAL", 보정완료 ? 각도색() : 0xff8800)
+    lcd문자(5, 8, 168, 각도상태, 각도색())
 }
 
 function 로봇초기화(): void {
@@ -327,8 +325,8 @@ function 로봇초기화(): void {
     lcd지우기()
     lcd배경색(0xffffff)
     lcd문자(1, 8, 16, "AUTO DRIVE READY", 0x000000)
-    lcd문자(2, 8, 54, "A = CALIBRATE", 0x0000ff)
-    lcd문자(3, 8, 92, "B = START", 0x008000)
+    lcd문자(2, 8, 54, "A = START", 0x0000ff)
+    lcd문자(3, 8, 92, "B = TILT CAL", 0x008000)
 }
 
 function 거리읽기(index: number): number {
@@ -386,10 +384,8 @@ function 높이변경(): void {
         maqueenPlusV2.pidControlStop()
         이동중 = false
     }
-    보정요청 = false
     주행시작됨 = false
     출발요청 = false
-    보정완료 = false
     라이더높이mm += 높이변경단위mm
     if (라이더높이mm > 최대라이더높이mm) 라이더높이mm = 최소라이더높이mm
     각도상태 = "CAL AGAIN"
@@ -728,7 +724,6 @@ function 바닥보정(): void {
     }
     각도진단(y5목록, y6목록, y7목록, 좌목록, 우목록)
     위험연속 = 0
-    보정완료 = true
     주행시작됨 = false
     출발요청 = false
     감시모드 = "FAST"
@@ -1010,23 +1005,18 @@ basic.forever(function () {
         return
     }
 
-    if (보정요청) {
-        보정요청 = false
-        바닥보정()
-        basic.pause(루프대기ms)
-        return
-    }
-
     if (!주행시작됨) {
-        if (출발요청 && 보정완료 && 각도상태 == "ANGLE OK") {
-            로그("START PRESSED -> 출발준비")
-            출발준비()
-        } else {
-            let 이전판단 = 마지막판단
-            if (출발요청 && !보정완료) 마지막판단 = "PRESS A"
-            if (출발요청 && 보정완료 && 각도상태 != "ANGLE OK") 마지막판단 = "ANGLE NG"
-            if (출발요청 && 마지막판단 != 이전판단) 로그("CANNOT START: " + 마지막판단)
+        if (출발요청) {
             출발요청 = false
+            기울기보정모드중 = false
+            로그("START PRESSED -> 출발준비")
+            바닥보정()
+            출발준비()
+        } else if (기울기보정모드중) {
+            기울기보정라이브틱()
+            basic.pause(기울기보정틱대기ms)
+            return
+        } else {
             lcd대기표시(false)
         }
         basic.pause(루프대기ms)
