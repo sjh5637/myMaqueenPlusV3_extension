@@ -41,6 +41,7 @@ const 실패연속한계 = 5
 const 탐색점수상한mm = 1000
 const 탈출최소점수 = 8000
 const 정면막힘확인필요 = 2
+const 비상후진cm = 5
 
 const 루프대기ms = 40
 const LCD갱신간격ms = 500
@@ -472,43 +473,6 @@ function 회전탐색틱(): void {
     }
 }
 
-function 안전전진거리cm(목표열: number, 거리목록: number[]): number {
-    let 인접열 = Math.round(목표열)
-    if (인접열 < 0) 인접열 = 0
-    if (인접열 > 7) 인접열 = 7
-    let 측정mm = 거리목록[인접열]
-    if (측정mm < 0) return 최소전진거리cm
-    if (측정mm == 0) return 적응전진거리cm
-    let 여유cm = Math.floor((측정mm - 정지거리mm) / 10)
-    if (여유cm < 최소전진거리cm) return 최소전진거리cm
-    return Math.min(적응전진거리cm, 여유cm)
-}
-
-function 최선열찾기(거리목록: number[]): number {
-    let 최선시작 = -1
-    let 최선길이 = 0
-    let 현재시작 = -1
-    let 현재길이 = 0
-    for (let col = 0; col < 8; col++) {
-        // 거리목록[col] == -1("모름", 글리치만 본 열)은 이 조건 어디에도 해당하지
-        // 않아 자동으로 막힘 취급된다 — 판단 불가 방향으로는 회전하지 않는다.
-        let 열림 = 거리목록[col] == 0 || 거리목록[col] >= 안전거리mm
-        if (열림) {
-            if (현재길이 == 0) 현재시작 = col
-            현재길이 += 1
-            if (현재길이 > 최선길이) {
-                최선길이 = 현재길이
-                최선시작 = 현재시작
-            }
-        } else {
-            현재길이 = 0
-        }
-    }
-    if (최선길이 < 최소그룹폭열수) return -1
-    let 중심열 = 최선시작 + (최선길이 - 1) / 2
-    return 중심열
-}
-
 function 열목록문자열(거리목록: number[]): string {
     let 결과 = ""
     for (let i = 0; i < 거리목록.length; i++) {
@@ -534,43 +498,6 @@ function 행렬64문자열(배열: number[]): string {
 // 백그라운드 스캐너가 갱신해둔 캐시를 그대로 로그로 보낸다(필터링 이전 raw 값).
 function 전체64로그(): void {
     로그("RAW(row0-7|col0-7) " + 행렬64문자열(캐시))
-}
-
-function 회피시도(): boolean {
-    전체64로그()
-    let 거리목록 = 전체열스캔()
-    로그("SCAN(filtered col0-7) " + 열목록문자열(거리목록))
-    let 목표열 = 최선열찾기(거리목록)
-    if (목표열 < 0) {
-        실패연속 += 1
-        전진성공연속 = 0
-        적응전진거리cm = Math.max(최소전진거리cm, 적응전진거리cm - 전진실패감소cm)
-        마지막판단 = "NO GAP F" + 실패연속
-        로그("AVOID NO GAP F" + 실패연속)
-        return false
-    }
-    let 목표각 = Math.round((목표열 - 3.5) * 7.5)
-    let 전진cm = 안전전진거리cm(목표열, 거리목록)
-    로그("AVOID TURN " + 목표각 + " GO " + 전진cm + "cm (step " + 적응전진거리cm + ")")
-    maqueenPlusV2.pidControlAngle(목표각, maqueenPlusV2.MyInterruption.NotAllowed)
-    maqueenPlusV2.pidControlDistance(maqueenPlusV2.SpeedDirection.SpeedCW, 전진cm, maqueenPlusV2.MyInterruption.NotAllowed)
-    if (!정면안전(0)) {
-        실패연속 += 1
-        전진성공연속 = 0
-        적응전진거리cm = Math.max(최소전진거리cm, 적응전진거리cm - 전진실패감소cm)
-        마지막판단 = "STILL BLOCKED F" + 실패연속
-        로그("AVOID STILL BLOCKED F" + 실패연속)
-        return false
-    }
-    실패연속 = 0
-    전진성공연속 += 1
-    if (전진성공연속 >= 전진성공증가조건) {
-        전진성공연속 = 0
-        적응전진거리cm = Math.min(최대전진거리cm, 적응전진거리cm + 전진성공증가cm)
-    }
-    마지막판단 = "AVOID OK col" + 목표열
-    로그("AVOID OK col" + 목표열 + " angle" + 목표각)
-    return true
 }
 
 function 점수용거리(원시거리: number): number {
@@ -705,24 +632,60 @@ basic.forever(function () {
         return
     }
 
+    델타갱신()
+
+    // 우선순위 1: 긴급 위험 — 회전 중이든 전진 중이든 최우선으로 처리
+    if (정면긴급위험()) {
+        if (회전탐색중) {
+            maqueenPlusV2.pidControlStop()
+            회전탐색중 = false
+        }
+        상태 = "EMERGENCY"
+        마지막판단 = "EMERGENCY BACKOFF"
+        로그("EMERGENCY BACKOFF")
+        maqueenPlusV2.pidControlDistance(maqueenPlusV2.SpeedDirection.SpeedCCW, 비상후진cm, maqueenPlusV2.MyInterruption.NotAllowed)
+        lcd표시(false)
+        basic.pause(루프대기ms)
+        return
+    }
+
+    // 우선순위 2: 회전 탐색 중이면 매 틱 확인(찾으면 즉시 멈추고, 소진되면
+    // 회전탐색중이 false가 되어 아래 평상시 판단으로 자연스럽게 넘어간다)
+    if (회전탐색중) {
+        회전탐색틱()
+        lcd표시(false)
+        basic.pause(루프대기ms)
+        return
+    }
+
+    // 우선순위 3: 평상시 전진/막힘 판단
     if (!정면블록확정()) {
         if (정면막힘연속 > 0) {
             상태 = "CHECK"
             마지막판단 = "RECHECK " + 정면막힘연속
-            lcd표시(false)
-            basic.pause(루프대기ms)
-            return
+        } else {
+            상태 = "DRIVE"
+            마지막판단 = "FWD " + 적응전진거리cm + "cm"
+            maqueenPlusV2.pidControlDistance(maqueenPlusV2.SpeedDirection.SpeedCW, 적응전진거리cm, maqueenPlusV2.MyInterruption.NotAllowed)
+            if (헛돌이감지()) {
+                마지막판단 = "STUCK/SLIP"
+                로그("STUCK/SLIP DETECTED while driving")
+                // 다음 틱에 즉시 "막힘 확정" 분기로 들어가게 강제한다(정면블록확정()의
+                // 내부 카운터를 직접 채움) — 라이다로는 안 보이는 것에 막혔을 때도
+                // 막힘 경로(우선순위 4)로 자연스럽게 이어지게 하기 위함.
+                정면막힘연속 = 정면막힘확인필요
+            }
         }
-        상태 = "DRIVE"
-        마지막판단 = "FWD " + 적응전진거리cm + "cm"
-        maqueenPlusV2.pidControlDistance(maqueenPlusV2.SpeedDirection.SpeedCW, 적응전진거리cm, maqueenPlusV2.MyInterruption.NotAllowed)
     } else {
+        // 우선순위 4: 막힘 확정 — 회전 탐색 시작, 반복 실패하면 5단계로
         maqueenPlusV2.pidControlStop()
         정면막힘연속 = 0
-        상태 = "AVOID"
-        로그("AVOID START")
-        let 회피성공 = 회피시도()
-        if (!회피성공 && 실패연속 >= 실패연속한계) {
+        상태 = "BLOCKED"
+        실패연속 += 1
+        마지막판단 = "BLOCKED F" + 실패연속
+        로그("FRONT BLOCKED F" + 실패연속)
+        if (실패연속 >= 실패연속한계) {
+            // 우선순위 5: 최종 폴백 — 기존 360도 굵게->세밀 탐색 재사용
             로그("ESCAPE TRIGGER failStreak=" + 실패연속)
             let 탈출성공 = 탈출360()
             if (!탈출성공) {
@@ -737,6 +700,8 @@ basic.forever(function () {
             }
             로그("ESCAPE SUCCESS score=" + 마지막탐색점수)
             실패연속 = 0
+        } else {
+            회전탐색시작()
         }
     }
 
