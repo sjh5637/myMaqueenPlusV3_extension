@@ -335,6 +335,8 @@ const 전진성공간격ms = 800
 const 헛돌이감지사용 = false
 
 function 기준값측정(): void {
+    백그라운드스캔일시정지 = true
+    basic.pause(50)
     let 시작 = input.runningTime()
     기준값 = []
     for (let row = 0; row < 8; row++) {
@@ -350,13 +352,14 @@ function 기준값측정(): void {
         캐시갱신시각[i] = 완료
     }
     기준값준비됨 = true
+    백그라운드스캔일시정지 = false
     마지막사이클ms = 0
     스캔번호 += 1
     정면막힘연속 = 0
     마지막정면블록스캔번호 = -1
     판정기록리셋()
     로그("BASELINE READY " + (완료 - 시작) + "ms")
-    상세로그("BASELINE(row0-7|col0-7) " + 행렬64문자열(기준값))
+    if (디버그레벨 >= 2) 상세로그("BASELINE(row0-7|col0-7) " + 행렬64문자열(기준값))
 }
 
 function 출발카운트다운(): void {
@@ -482,6 +485,7 @@ function 델타갱신(): void {
 // 같이 봐야 하는지를 사용자가 실측 데이터로 직접 검증/조정할 수 있게 한다.
 // 디버그레벨 2(상세)에서만 보낸다.
 function 델타64로그(): void {
+    if (디버그레벨 < 2) return
     상세로그("DELTA(row0-7|col0-7) " + 행렬64문자열(델타))
 }
 
@@ -519,25 +523,29 @@ function 판정기록리셋(): void {
 function 정면긴급위험(): boolean {
     전체64로그()
     델타64로그()
-    let 중앙열 = [2, 3, 4, 5]
-    for (let i = 0; i < 중앙열.length; i++) {
-        let col = 중앙열[i]
-        for (let row = 0; row < 2; row++) {
-            let idx = row * 8 + col
-            let 지금 = 직전판정[idx]
-            if (델타[idx] >= 긴급delta한계mm && 지금 > 0 && 지금 <= 긴급최대거리mm) {
-                if (마지막긴급스캔번호 != 스캔번호) {
-                    마지막긴급스캔번호 = 스캔번호
-                    긴급연속 += 1
-                    로그("DELTA EMERGENCY CANDIDATE " + 긴급연속 + "/" + 긴급확인필요
-                        + " col" + col + " row" + row + " delta" + 델타[idx] + " now" + 지금 + " scan=" + 스캔번호)
-                }
-                return 긴급연속 >= 긴급확인필요
-            }
-        }
-    }
+    if (긴급칸위험(2, 0)) return true
+    if (긴급칸위험(2, 1)) return true
+    if (긴급칸위험(3, 0)) return true
+    if (긴급칸위험(3, 1)) return true
+    if (긴급칸위험(4, 0)) return true
+    if (긴급칸위험(4, 1)) return true
+    if (긴급칸위험(5, 0)) return true
+    if (긴급칸위험(5, 1)) return true
     긴급연속 = 0
     return false
+}
+
+function 긴급칸위험(col: number, row: number): boolean {
+    let idx = row * 8 + col
+    let 지금 = 직전판정[idx]
+    if (델타[idx] < 긴급delta한계mm || 지금 <= 0 || 지금 > 긴급최대거리mm) return false
+    if (마지막긴급스캔번호 != 스캔번호) {
+        마지막긴급스캔번호 = 스캔번호
+        긴급연속 += 1
+        로그("DELTA EMERGENCY CANDIDATE " + 긴급연속 + "/" + 긴급확인필요
+            + " col" + col + " row" + row + " delta" + 델타[idx] + " now" + 지금 + " scan=" + 스캔번호)
+    }
+    return 긴급연속 >= 긴급확인필요
 }
 
 let 진행추적시작시각 = 0
@@ -580,7 +588,7 @@ function 장애물조향보정(): number {
 function 직진모터명령(속도: number): void {
     let 장애물보정 = 장애물조향보정()
     if (장애물보정 != 0) {
-        상세로그("STEER bias=" + 장애물보정 + " (+ = turn left, - = turn right)")
+        if (디버그레벨 >= 2) 상세로그("STEER bias=" + 장애물보정 + " (+ = turn left, - = turn right)")
         let 왼쪽명령 = Math.round(제한값(속도 - 장애물보정, 0, 255))
         let 오른쪽명령 = Math.round(제한값(속도 + 장애물보정, 0, 255))
         maqueenPlusV2.controlMotor(maqueenPlusV2.MyEnumMotor.LeftMotor, maqueenPlusV2.MyEnumDir.Forward, 왼쪽명령)
@@ -829,6 +837,12 @@ function 회전탐색방향확정(): boolean {
     basic.pause(200)
     if (!회전탐색정면안전()) {
         로그("ROTATE CANDIDATE LOST, continue")
+        회전탐색반복횟수 += 1
+        if (회전탐색반복횟수 >= 회전탐색최대반복) {
+            로그("ROTATE CANDIDATE LOST LIMIT")
+            회전탐색중 = false
+            return false
+        }
         maqueenPlusV2.pidControlAngle(회전탐색방향 * 회전1회각도, maqueenPlusV2.MyInterruption.Allowed)
         회전탐색시작시각 = input.runningTime()
         return false
@@ -1016,6 +1030,7 @@ function 직진테스트틱(): void {
 // 64개 값 전부라 디버그레벨 2(상세)에서만 보낸다 — 막힘이 막 확정된 시점에
 // 호출해서, 최적화/진단 시 "왜 막힘으로 판단했는지"를 raw 단계까지 볼 수 있게 한다.
 function 전체64로그(): void {
+    if (디버그레벨 < 2) return
     상세로그("RAW(row0-7|col0-7) " + 행렬64문자열(캐시))
 }
 
@@ -1684,6 +1699,7 @@ let 마지막정면블록스캔번호 = -1
 
 let 직전판정: number[] = []
 let 델타: number[] = []
+let 백그라운드스캔일시정지 = false
 for (let i = 0; i < 64; i++) {
     직전판정.push(-1)
     델타.push(0)
@@ -1696,6 +1712,8 @@ const 전진성공간격ms = 800
 const 헛돌이감지사용 = false
 
 function 기준값측정(): void {
+    백그라운드스캔일시정지 = true
+    basic.pause(50)
     let 시작 = input.runningTime()
     기준값 = []
     for (let row = 0; row < 8; row++) {
@@ -1711,13 +1729,13 @@ function 기준값측정(): void {
         캐시갱신시각[i] = 완료
     }
     기준값준비됨 = true
+    백그라운드스캔일시정지 = false
     마지막사이클ms = 0
     스캔번호 += 1
     정면막힘연속 = 0
     마지막정면블록스캔번호 = -1
     판정기록리셋()
     로그("BASELINE READY " + (완료 - 시작) + "ms")
-    상세로그("BASELINE(row0-7|col0-7) " + 행렬64문자열(기준값))
 }
 
 function 출발카운트다운(): void {
@@ -1802,7 +1820,6 @@ function 델타갱신(): void {
 }
 
 function 델타64로그(): void {
-    상세로그("DELTA(row0-7|col0-7) " + 행렬64문자열(델타))
 }
 
 let 긴급연속 = 0
@@ -1821,25 +1838,29 @@ function 판정기록리셋(): void {
 function 정면긴급위험(): boolean {
     전체64로그()
     델타64로그()
-    let 중앙열 = [2, 3, 4, 5]
-    for (let i = 0; i < 중앙열.length; i++) {
-        let col = 중앙열[i]
-        for (let row = 0; row < 2; row++) {
-            let idx = row * 8 + col
-            let 지금 = 직전판정[idx]
-            if (델타[idx] >= 긴급delta한계mm && 지금 > 0 && 지금 <= 긴급최대거리mm) {
-                if (마지막긴급스캔번호 != 스캔번호) {
-                    마지막긴급스캔번호 = 스캔번호
-                    긴급연속 += 1
-                    로그("DELTA EMERGENCY CANDIDATE " + 긴급연속 + "/" + 긴급확인필요
-                        + " col" + col + " row" + row + " delta" + 델타[idx] + " now" + 지금 + " scan=" + 스캔번호)
-                }
-                return 긴급연속 >= 긴급확인필요
-            }
-        }
-    }
+    if (긴급칸위험(2, 0)) return true
+    if (긴급칸위험(2, 1)) return true
+    if (긴급칸위험(3, 0)) return true
+    if (긴급칸위험(3, 1)) return true
+    if (긴급칸위험(4, 0)) return true
+    if (긴급칸위험(4, 1)) return true
+    if (긴급칸위험(5, 0)) return true
+    if (긴급칸위험(5, 1)) return true
     긴급연속 = 0
     return false
+}
+
+function 긴급칸위험(col: number, row: number): boolean {
+    let idx = row * 8 + col
+    let 지금 = 직전판정[idx]
+    if (델타[idx] < 긴급delta한계mm || 지금 <= 0 || 지금 > 긴급최대거리mm) return false
+    if (마지막긴급스캔번호 != 스캔번호) {
+        마지막긴급스캔번호 = 스캔번호
+        긴급연속 += 1
+        로그("DELTA EMERGENCY CANDIDATE " + 긴급연속 + "/" + 긴급확인필요
+            + " col" + col + " row" + row + " delta" + 델타[idx] + " now" + 지금 + " scan=" + 스캔번호)
+    }
+    return 긴급연속 >= 긴급확인필요
 }
 
 let 진행추적시작시각 = 0
@@ -1868,7 +1889,6 @@ function 장애물조향보정(): number {
 function 직진모터명령(속도: number): void {
     let 장애물보정 = 장애물조향보정()
     if (장애물보정 != 0) {
-        상세로그("STEER bias=" + 장애물보정 + " (+ = turn left, - = turn right)")
         let 왼쪽명령 = Math.round(제한값(속도 - 장애물보정, 0, 255))
         let 오른쪽명령 = Math.round(제한값(속도 + 장애물보정, 0, 255))
         maqueenPlusV2.controlMotor(maqueenPlusV2.MyEnumMotor.LeftMotor, maqueenPlusV2.MyEnumDir.Forward, 왼쪽명령)
@@ -2078,6 +2098,12 @@ function 회전탐색방향확정(): boolean {
     basic.pause(200)
     if (!회전탐색정면안전()) {
         로그("ROTATE CANDIDATE LOST, continue")
+        회전탐색반복횟수 += 1
+        if (회전탐색반복횟수 >= 회전탐색최대반복) {
+            로그("ROTATE CANDIDATE LOST LIMIT")
+            회전탐색중 = false
+            return false
+        }
         maqueenPlusV2.pidControlAngle(회전탐색방향 * 회전1회각도, maqueenPlusV2.MyInterruption.Allowed)
         회전탐색시작시각 = input.runningTime()
         return false
@@ -2123,7 +2149,6 @@ function 행렬64문자열(배열: number[]): string {
 }
 
 function 전체64로그(): void {
-    상세로그("RAW(row0-7|col0-7) " + 행렬64문자열(캐시))
 }
 
 function 점수용거리(원시거리: number): number {
@@ -2220,6 +2245,10 @@ input.onButtonPressed(Button.B, function () {
 
 control.inBackground(function () {
     while (true) {
+        if (백그라운드스캔일시정지) {
+            basic.pause(20)
+            continue
+        }
         let 시작 = input.runningTime()
         for (let row = 0; row < 8; row++) {
             for (let col = 0; col < 8; col++) {
