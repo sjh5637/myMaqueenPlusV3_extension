@@ -11,11 +11,12 @@
 3. `y=7`은 가까운 충돌권 전용으로 보고, 매우 가까운 값이 잡히면 즉시 회피합니다.
 4. 가운데 열이 가까우면 물체에 더 접근한 뒤 왼쪽/오른쪽 가까운 정도 차이로 자연스럽게 한쪽 바퀴 속도를 더 줘서 피합니다.
 5. 막힘이 2번 연속이면 정지, 짧게 후진, 왼쪽/오른쪽 열린 점수를 비교해서 정확한 각도로 회전합니다.
-6. 같은 방향 회피가 반복되거나 실제 바퀴 속도가 멈추면 후진 후 360도 정밀 탐색으로 빠져나갑니다.
+6. 같은 방향 회피가 반복되거나 실제 바퀴 속도가 멈추면 후진 후 좌우 30도씩 3단계 정밀 탐색으로 빠져나갑니다.
 
 ## 코드
 
 ```typescript
+const LCD주소 = 0x2c
 const 라이다주소 = matrixLidarDistance.Addr.Addr4
 const 라이다무효값mm = 4000
 
@@ -28,6 +29,7 @@ const 정지거리mm = 240
 const 회피시작거리mm = 320
 const 아래행위험거리mm = 175
 const 긴급근접거리mm = 200
+const 통로측면거리mm = 260
 const 열린거리상한mm = 1200
 
 const 시작전진속도 = 45
@@ -35,8 +37,11 @@ const 저속전진속도 = 45
 const 최고전진속도 = 80
 const 후진속도 = 45
 const 조향최대보정 = 26
+const 통로보정최대 = 18
 
 const 루프대기ms = 60
+const LCD갱신간격ms = 500
+const LCD쓰기지연ms = 5
 const 후진시간ms = 260
 const 기본회전각도 = 45
 const 큰회전각도 = 75
@@ -60,6 +65,72 @@ let 같은방향회전수 = 0
 let 마지막정지감지시각 = 0
 let 마지막명령전진 = false
 let 아래행위험쪽 = 0
+let 상태 = "READY"
+let 중앙최소 = 0
+let 아래행최소 = 0
+let 마지막LCD시각 = 0
+
+function lcd명령쓰기(데이터: number[]): void {
+    let 보낼위치 = 0
+    while (보낼위치 < 데이터.length) {
+        let 끝 = Math.min(보낼위치 + 32, 데이터.length)
+        let 조각 = 데이터.slice(보낼위치, 끝)
+        pins.i2cWriteBuffer(LCD주소, pins.createBufferFromArray(조각), 끝 < 데이터.length)
+        보낼위치 = 끝
+        basic.pause(LCD쓰기지연ms)
+    }
+}
+
+function lcd명령(명령: number, 데이터: number[]): void {
+    let 패킷 = [0x55, 0xaa, 데이터.length + 1, 명령]
+    for (let i = 0; i < 데이터.length; i++) 패킷.push(데이터[i])
+    lcd명령쓰기(패킷)
+}
+
+function lcd지우기(): void {
+    lcd명령(0x1d, [])
+    basic.pause(1500)
+}
+
+function lcd문자(번호: number, x: number, y: number, 내용: string, 색: number): void {
+    let 데이터 = [
+        번호,
+        2,
+        (색 >> 16) & 0xff,
+        (색 >> 8) & 0xff,
+        색 & 0xff,
+        (x >> 8) & 0xff,
+        x & 0xff,
+        (y >> 8) & 0xff,
+        y & 0xff
+    ]
+    for (let i = 0; i < 내용.length; i++) 데이터.push(내용.charCodeAt(i))
+    lcd명령(0x18, 데이터)
+}
+
+function lcd줄(번호: number, 내용: string, 색: number): void {
+    let y목록 = [16, 54, 92, 130]
+    let 표시 = 내용
+    if (표시.length > 24) 표시 = 표시.substr(0, 24)
+    while (표시.length < 24) 표시 += " "
+    lcd문자(번호, 8, y목록[번호 - 1], 표시, 색)
+}
+
+function lcd표시(강제: boolean): void {
+    if (!강제 && input.runningTime() - 마지막LCD시각 < LCD갱신간격ms) return
+    마지막LCD시각 = input.runningTime()
+    if (!주행중) {
+        lcd줄(1, "READY", 0x000000)
+        lcd줄(2, "PRESS B TO START", 0x0000ff)
+        lcd줄(3, "LIDAR ONLY", 0x008000)
+        lcd줄(4, "TAG v0.0.24", 0xaa00aa)
+    } else {
+        lcd줄(1, "STATE " + 상태, 0x000000)
+        lcd줄(2, "C" + 중앙최소 + " B" + 아래행최소 + " V" + 현재속도, 0x0000ff)
+        lcd줄(3, "F" + 실패연속 + " M" + 막힘연속 + " D" + 마지막회전방향, 0x008000)
+        lcd줄(4, "S" + 같은방향회전수 + " Y7" + 아래행위험연속, 0xaa00aa)
+    }
+}
 
 function 유효거리(raw: number): number {
     if (raw <= 0 || raw >= 라이다무효값mm) {
@@ -102,8 +173,12 @@ function 전체장면읽기(): void {
 function 아래행위험읽기(): boolean {
     let leftHit = 0
     let rightHit = 0
+    아래행최소 = 0
     for (let col = 1; col <= 6; col++) {
         let d = 유효거리(matrixLidarDistance.matrixPointOutput(라이다주소, col, 7))
+        if (d > 0 && (아래행최소 == 0 || d < 아래행최소)) {
+            아래행최소 = d
+        }
         if (d > 0 && d < 아래행위험거리mm) {
             if (col <= 3) {
                 leftHit += 1
@@ -153,6 +228,7 @@ function 정면막힘확정(): boolean {
 
 function 긴급근접위험(): boolean {
     let centerNear = 범위최소거리(2, 5)
+    중앙최소 = centerNear
     return centerNear > 0 && centerNear < 긴급근접거리mm
 }
 
@@ -172,6 +248,7 @@ function 열린점수(fromCol: number, toCol: number): number {
 }
 
 function 정지(): void {
+    마지막명령전진 = false
     maqueenPlusV2.controlMotorStop(maqueenPlusV2.MyEnumMotor.AllMotor)
 }
 
@@ -182,6 +259,8 @@ function 전진명령(left: number, right: number): void {
 }
 
 function 후진짧게(): void {
+    상태 = "BACK"
+    lcd표시(true)
     마지막명령전진 = false
     maqueenPlusV2.controlMotor(maqueenPlusV2.MyEnumMotor.AllMotor, maqueenPlusV2.MyEnumDir.Backward, 후진속도)
     basic.pause(후진시간ms)
@@ -190,6 +269,8 @@ function 후진짧게(): void {
 }
 
 function 각도회전(방향: number, 각도: number): void {
+    상태 = "TURN" + 방향 * 각도
+    lcd표시(true)
     마지막명령전진 = false
     정지()
     basic.pause(80)
@@ -214,11 +295,12 @@ function 회피방향계산(): number {
 }
 
 function 회피회전(강제정밀탐색: boolean): void {
+    상태 = "AVOID"
     정지()
     basic.showIcon(IconNames.No)
     후진짧게()
     if (강제정밀탐색 || 실패연속 >= 정밀탐색실패한계) {
-        정밀탐색360()
+        정밀탐색좌우90()
         return
     }
 
@@ -238,6 +320,7 @@ function 회피회전(강제정밀탐색: boolean): void {
 
 function 자연회피전진(): void {
     let centerNear = 범위최소거리(2, 5)
+    중앙최소 = centerNear
     let base = 현재속도
     if (centerNear > 0 && centerNear < 회피시작거리mm) {
         base = 저속전진속도
@@ -253,6 +336,13 @@ function 자연회피전진(): void {
     let steer = 0
     if (centerNear > 0 && centerNear < 회피시작거리mm) {
         steer = 제한값(Math.round((leftNear - rightNear) * 조향최대보정 / 회피시작거리mm), -조향최대보정, 조향최대보정)
+        상태 = "CURVE"
+    } else if ((leftNear > 0 && leftNear < 통로측면거리mm) || (rightNear > 0 && rightNear < 통로측면거리mm)) {
+        steer = 제한값(Math.round((leftNear - rightNear) * 통로보정최대 / 통로측면거리mm), -통로보정최대, 통로보정최대)
+        base = 저속전진속도
+        상태 = "PASS"
+    } else {
+        상태 = "RUN"
     }
     전진명령(base - steer, base + steer)
     basic.showArrow(ArrowNames.North)
@@ -304,19 +394,30 @@ function 후보삽입(각목록: number[], 점수목록: number[], 각도: numbe
     }
 }
 
-function 정밀탐색360(): void {
+function 정밀탐색좌우90(): void {
+    상태 = "SCAN"
+    lcd표시(true)
     basic.showIcon(IconNames.Diamond)
     let 후보각 = [0, 0, 0, 0, 0]
     let 후보점수 = [-999999, -999999, -999999, -999999, -999999]
     let 현재각 = 0
     후보삽입(후보각, 후보점수, 현재각, 정밀탐색점수())
 
-    for (let i = 1; i <= 12; i++) {
-        각도회전(1, 정밀탐색간격도)
+    let 첫방향 = randint(0, 1) == 0 ? 1 : -1
+    for (let i = 1; i <= 3; i++) {
+        각도회전(첫방향, 정밀탐색간격도)
         현재각 += 정밀탐색간격도
-        if (현재각 > 180) 현재각 -= 360
-        후보삽입(후보각, 후보점수, 현재각, 정밀탐색점수())
+        후보삽입(후보각, 후보점수, 첫방향 * 현재각, 정밀탐색점수())
     }
+    각도회전(0 - 첫방향, 정밀탐색간격도 * 3)
+    현재각 = 0
+    let 둘째방향 = 0 - 첫방향
+    for (let j = 1; j <= 3; j++) {
+        각도회전(둘째방향, 정밀탐색간격도)
+        현재각 += 정밀탐색간격도
+        후보삽입(후보각, 후보점수, 둘째방향 * 현재각, 정밀탐색점수())
+    }
+    각도회전(첫방향, 정밀탐색간격도 * 3)
 
     let 선택범위 = 0
     for (let k = 0; k < 정밀탐색후보수; k++) {
@@ -338,6 +439,7 @@ function 정밀탐색360(): void {
 input.onButtonPressed(Button.B, function () {
     주행중 = !(주행중)
     if (주행중) {
+        상태 = "RUN"
         현재속도 = 시작전진속도
         막힘연속 = 0
         아래행위험연속 = 0
@@ -346,15 +448,19 @@ input.onButtonPressed(Button.B, function () {
         같은방향회전수 = 0
         마지막정지감지시각 = input.runningTime()
         마지막명령전진 = false
-        basic.showIcon(IconNames.Yes)
+        basic.showIcon(IconNames.Happy)
+        lcd표시(true)
     } else {
+        상태 = "STOP"
         정지()
         basic.showIcon(IconNames.Target)
+        lcd표시(true)
     }
 })
 
 basic.forever(function () {
     if (!주행중) {
+        lcd표시(false)
         basic.pause(100)
         return
     }
@@ -362,14 +468,17 @@ basic.forever(function () {
     핵심장면읽기()
 
     if (아래행위험읽기() || 긴급근접위험()) {
+        상태 = "DANGER"
         현재속도 = 시작전진속도
         실패연속 += 1
         회피회전(false)
     } else if (정지감지됨()) {
+        상태 = "STALL"
         현재속도 = 시작전진속도
         실패연속 += 정밀탐색실패한계
         회피회전(true)
     } else if (정면막힘확정()) {
+        상태 = "BLOCK"
         현재속도 = 시작전진속도
         실패연속 += 1
         회피회전(false)
@@ -378,9 +487,12 @@ basic.forever(function () {
         자연회피전진()
     }
 
+    lcd표시(false)
     basic.pause(루프대기ms)
 })
 
+lcd지우기()
+lcd표시(true)
 basic.showIcon(IconNames.Target)
 ```
 
@@ -392,9 +504,10 @@ basic.showIcon(IconNames.Target)
 | `정지거리mm` | 240 | 너무 가까이 붙으면 280~320으로 올림 |
 | `회피시작거리mm` | 320 | 더 가까이 붙은 뒤 피하려면 낮추고, 더 일찍 피하려면 올림 |
 | `아래행위험거리mm` | 175 | `y=7` 아래 행 근접 위험 기준. 빈 공간에서도 자주 반응하면 낮춤 |
+| `통로측면거리mm` | 260 | 좁은 통로에서 벽에 닿지 않게 보정하기 시작하는 측면 거리 |
 | `시작전진속도` | 45 | 출발이 안 되면 50, 너무 빠르면 40 |
 | `최고전진속도` | 80 | 너무 빠르면 65~70 |
 | `기본회전각도` | 45 | 일반 회피 각도 |
 | `큰회전각도` | 75 | 반복 막힘에서 더 크게 도는 각도 |
 | `좌우점수차이한계` | 120 | 좌우가 비슷할 때 최근 실패 반대 방향을 더 쉽게 쓰려면 값을 올림 |
-| `정밀탐색실패한계` | 4 | 이 횟수 이상 실패하면 후진 후 360도 정밀 탐색 |
+| `정밀탐색실패한계` | 4 | 이 횟수 이상 실패하면 후진 후 좌우 90도 정밀 탐색 |
