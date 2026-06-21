@@ -272,20 +272,24 @@ function 전체열스캔(): number[] {
     return 결과
 }
 
-function 칸안전(거리: number): boolean {
+// 추가여유mm: 이 판단 직후 곧바로 blind PID 전진을 걸 계획이라면 그 전진 거리(mm)를
+// 넘겨서, "지금은 안전하지만 이번 전진을 마치면 정지선을 넘어설" 상황을 미리 막는다.
+// pidControlDistance(NotAllowed)는 완료까지 라이다를 다시 보지 않는 블로킹 호출이라,
+// 전진을 시작하기 전에 그 전진 거리만큼의 여유까지 확인해야 한다.
+function 칸안전(거리: number, 추가여유mm: number): boolean {
     if (거리 < 0) return false
     if (거리 == 0) return true
-    return 거리 >= 정지거리mm
+    return 거리 >= 정지거리mm + 추가여유mm
 }
 
-function 정면안전(): boolean {
+function 정면안전(추가여유mm: number): boolean {
     let c3 = 열최소읍기(3)
     let c4 = 열최소읍기(4)
-    return 칸안전(c3) && 칸안전(c4)
+    return 칸안전(c3, 추가여유mm) && 칸안전(c4, 추가여유mm)
 }
 
 function 정면블록확정(): boolean {
-    if (정면안전()) {
+    if (정면안전(적응전진거리cm * 10)) {
         if (정면막힘연속 > 0) 로그("FRONT CLEAR AGAIN (was " + 정면막힘연속 + ")")
         정면막힘연속 = 0
         return false
@@ -348,7 +352,7 @@ function 회피시도(): boolean {
     로그("AVOID TURN " + 목표각 + " GO " + 전진cm + "cm (step " + 적응전진거리cm + ")")
     maqueenPlusV2.pidControlAngle(목표각, maqueenPlusV2.MyInterruption.NotAllowed)
     maqueenPlusV2.pidControlDistance(maqueenPlusV2.SpeedDirection.SpeedCW, 전진cm, maqueenPlusV2.MyInterruption.NotAllowed)
-    if (!정면안전()) {
+    if (!정면안전(0)) {
         실패연속 += 1
         전진성공연속 = 0
         적응전진거리cm = Math.max(최소전진거리cm, 적응전진거리cm - 전진실패감소cm)
