@@ -227,6 +227,28 @@ function 로봇초기화(): void {
     lcd줄(3, "NO CALIBRATION NEEDED", 0x008000)
 }
 
+// 출발 직전(카운트다운 끝)에 8x8 64칸을 전부 한 번 읍어서 "평소 배경"으로
+// 저장한다. row4~7은 바닥과 교차해 항상 가깝게 읍히지만(60도 수직 FOV를 8행으로
+// 나누면 완전히 수평으로 달아도 아래쪽 행은 바닥을 본다), 그 자체를 버리지 않고
+// "이 칸은 평소 이 정도 거리(바닥)였다"로 기억해둔 뒤, 실시간 스캔에서 그
+// 거리와 거의 같으면 배경(바닥)으로, 뚜렷이 가까워지면 새로 들어온 장애물로
+// 판단한다 — 8x8 전체를 다 쓰면서도 바닥 오탐을 피하고, 바닥 쪽에 실제로
+// 뭔가 끼어들어도 실시간으로 잡아낸다.
+let 기준값: number[] = []
+let 기준값준비됨 = false
+const 기준값여유mm = 60
+
+function 기준값측정(): void {
+    기준값 = []
+    for (let row = 0; row < 8; row++) {
+        for (let col = 0; col < 8; col++) {
+            기준값.push(matrixLidarDistance.matrixPointOutput(라이다주소, col, row))
+        }
+    }
+    기준값준비됨 = true
+    로그("BASELINE(row0-7|col0-7) " + 행렬64문자열(기준값))
+}
+
 function 출발카운트다운(): void {
     상태 = "START"
     로그("START COUNTDOWN")
@@ -237,36 +259,37 @@ function 출발카운트다운(): void {
         basic.showNumber(n)
         basic.pause(1000)
     }
+    기준값측정()
     basic.clearScreen()
     로그("DRIVE START")
 }
 
-// 반환값: 양수 = 실제로 본 가장 가까운 장애물 거리(mm, 보수적/안전 우선),
-// 0 = 신뢰 행 중 적어도 한 행이 센티널(라이다무효값mm 이상, 확실한 "감지 없음")을
-// 본 경우, -1 = 유효한 측정도, 센티널도 못 봤음(전부 raw==0 글리치) — 판단 불가, "모름".
-// raw==0 글리치를 센티널과 같은 0으로 합쳐버리면 실제 장애물이 있는데도 행들이 동시에
-// 글리치 날 때 "확실히 열림"으로 오판할 수 있어 구분한다.
-// row 4~7(아래쪽 행)은 뺀다 — 60도 수직 FOV를 8행으로 나누면, 완전히 수평으로
-// 장착해도 아래쪽 행은 어차피 바닥과 교차한다(장착 높이가 낮을수록 더 가까운
-// 지점에서 교차). 실측 RAW 로그에서 row4~7이 좌우 8열 모두 거의 동일하게
-// (row7≈170mm, row6≈230mm, row5≈300mm) 점점 가까워지는 패턴이 매 스캔 반복
-// 확인됐다 — 좌우로 균일하다는 게 "진짜 정면 장애물"이 아니라 "바닥"이라는
-// 신호다. row0~3은 대부분 진짜로 트여 있거나(센티널), 실제 장애물이 있을 때만
-// 값이 잡혔다(같은 위치에서 두 스캔 모두 col1에 700~950mm대가 반복 관찰됨).
-const 라이다신뢰행시작 = 0
-const 라이다신뢰행끝 = 3
+// raw 한 칸을 "장애물 판단용 값"으로 바꾼다: 0=확실히 열림(배경과 일치 포함),
+// -1=모름(글리치), 양수=실제 장애물 거리. 기준(그 칸의 평소 배경 거리)이 없거나
+// (보정 전, raw==0 글리치였던 칸) 기준 자체가 "확실한 감지없음"이었던 칸이면
+// 지금 읍은 값을 그대로 신뢰한다. 기준이 실측 거리(대개 바닥)였던 칸은, 지금
+// 값이 그 기준보다 기준값여유mm 이상 가까워졌을 때만 "새 장애물"로 인정한다.
+function 셀판정(raw: number, 기준: number): number {
+    if (raw >= 라이다무효값mm) return 0
+    if (raw == 0) return -1
+    if (기준 <= 0 || 기준 >= 라이다무효값mm) return raw
+    if (raw >= 기준 - 기준값여유mm) return 0
+    return raw
+}
 
 function 열최소읍기(col: number): number {
     let 최소 = -1
     let 센티널확인 = false
-    for (let row = 라이다신뢰행시작; row <= 라이다신뢰행끝; row++) {
+    for (let row = 0; row < 8; row++) {
         let raw = matrixLidarDistance.matrixPointOutput(라이다주소, col, row)
-        if (raw >= 라이다무효값mm) {
+        let 기준 = 기준값준비됨 ? 기준값[row * 8 + col] : -1
+        let 값 = 셀판정(raw, 기준)
+        if (값 == 0) {
             센티널확인 = true
-        } else if (raw > 0) {
-            if (최소 < 0 || raw < 최소) 최소 = raw
+        } else if (값 > 0) {
+            if (최소 < 0 || 값 < 최소) 최소 = 값
         }
-        // raw == 0(글리치)은 무시 — 열림으로도 막힘으로도 셈하지 않음
+        // 값 == -1(글리치)은 무시 — 열림으로도 막힘으로도 셈하지 않음
     }
     if (최소 >= 0) return 최소
     if (센티널확인) return 0
@@ -355,20 +378,31 @@ function 열목록문자열(거리목록: number[]): string {
     return 결과
 }
 
-// 필터링(4000 센티널 -> 0, raw==0 글리치 -> -1) 이전의 원본 64개 값을 그대로
-// 로그로 보낸다 — "너무 멀어서 4000대"와 "너무 가까워서 4000대"가 실제로 같은
-// 값으로 나오는지 등을 raw 단계에서 직접 확인하기 위한 진단용. row 0줄씩
-// "|"로 구분, 한 줄 안에서는 col0~7을 ","로 구분.
-function 전체64로그(): void {
+// 64개짜리 평면 배열(row*8+col 순서)을 row 단위로 "|" 구분, 한 줄 안에서는
+// col0~7을 ","로 구분한 문자열로 만든다 — RAW 덤프/기준값 로그가 공유한다.
+function 행렬64문자열(배열: number[]): string {
     let 결과 = ""
     for (let row = 0; row < 8; row++) {
         if (row > 0) 결과 += "|"
         for (let col = 0; col < 8; col++) {
             if (col > 0) 결과 += ","
-            결과 += matrixLidarDistance.matrixPointOutput(라이다주소, col, row)
+            결과 += 배열[row * 8 + col]
         }
     }
-    로그("RAW(row0-7|col0-7) " + 결과)
+    return 결과
+}
+
+// 필터링(4000 센티널 -> 0, raw==0 글리치 -> -1) 이전의 원본 64개 값을 그대로
+// 로그로 보낸다 — "너무 멀어서 4000대"와 "너무 가까워서 4000대"가 실제로 같은
+// 값으로 나오는지 등을 raw 단계에서 직접 확인하기 위한 진단용.
+function 전체64로그(): void {
+    let 결과: number[] = []
+    for (let row = 0; row < 8; row++) {
+        for (let col = 0; col < 8; col++) {
+            결과.push(matrixLidarDistance.matrixPointOutput(라이다주소, col, row))
+        }
+    }
+    로그("RAW(row0-7|col0-7) " + 행렬64문자열(결과))
 }
 
 function 회피시도(): boolean {
