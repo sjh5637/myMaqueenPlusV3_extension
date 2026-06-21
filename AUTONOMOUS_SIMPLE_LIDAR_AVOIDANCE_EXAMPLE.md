@@ -7,11 +7,11 @@
 ## 동작 순서
 
 1. `B` 버튼을 누르면 시작/정지 토글.
-2. 매 루프마다 LiDAR의 일부 행만 읽어 각 열의 가장 가까운 유효 거리만 계산.
-3. 가운데 열이 가까우면 속도를 낮추고, 왼쪽/오른쪽 가까운 정도 차이로 자연스럽게 한쪽 바퀴 속도를 더 줘서 피함.
-4. 가운데가 너무 가까운 상태가 2번 연속이면 정지, 짧게 후진, 왼쪽/오른쪽 열린 점수를 비교해서 더 열린 방향으로 회전.
-5. 같은 방향 회피가 반복되면 반대 방향을 우선하고, 반복 막힘이면 회전 시간을 늘려 빠져나감.
-6. 다시 전진.
+2. 매 루프마다 앞쪽 핵심 열과 가장 아래 행 `y=7`을 확인합니다.
+3. `y=7`은 가까운 충돌권 전용으로 보고, 매우 가까운 값이 잡히면 즉시 회피합니다.
+4. 가운데 열이 가까우면 물체에 더 접근한 뒤 왼쪽/오른쪽 가까운 정도 차이로 자연스럽게 한쪽 바퀴 속도를 더 줘서 피합니다.
+5. 막힘이 2번 연속이면 정지, 짧게 후진, 왼쪽/오른쪽 열린 점수를 비교해서 정확한 각도로 회전합니다.
+6. 같은 방향 회피가 반복되거나 실제 바퀴 속도가 멈추면 후진 후 360도 정밀 탐색으로 빠져나갑니다.
 
 ## 코드
 
@@ -25,31 +25,41 @@ const 판정행시작 = 0
 const 판정행끝 = 4
 
 const 정지거리mm = 240
-const 감속거리mm = 420
+const 회피시작거리mm = 320
+const 아래행위험거리mm = 175
+const 긴급근접거리mm = 200
 const 열린거리상한mm = 1200
 
 const 시작전진속도 = 45
 const 저속전진속도 = 45
 const 최고전진속도 = 80
-const 회전속도 = 55
 const 후진속도 = 45
 const 조향최대보정 = 26
 
 const 루프대기ms = 60
 const 후진시간ms = 260
-const 기본회전시간ms = 340
-const 큰회전시간ms = 540
+const 기본회전각도 = 45
+const 큰회전각도 = 75
 const 막힘연속필요 = 2
 const 같은방향회전한계 = 2
 const 좌우점수차이한계 = 120
+const 정지감지주기ms = 900
+const 정지감지속도기준 = 1
+const 정밀탐색실패한계 = 4
+const 정밀탐색간격도 = 30
+const 정밀탐색후보수 = 5
 
 let 주행중 = false
 let 열거리 = [0, 0, 0, 0, 0, 0, 0, 0]
 let 현재속도 = 시작전진속도
 let 막힘연속 = 0
+let 아래행위험연속 = 0
 let 실패연속 = 0
 let 마지막회전방향 = 0
 let 같은방향회전수 = 0
+let 마지막정지감지시각 = 0
+let 마지막명령전진 = false
+let 아래행위험쪽 = 0
 
 function 유효거리(raw: number): number {
     if (raw <= 0 || raw >= 라이다무효값mm) {
@@ -89,6 +99,28 @@ function 전체장면읽기(): void {
     }
 }
 
+function 아래행위험읽기(): boolean {
+    let leftHit = 0
+    let rightHit = 0
+    for (let col = 1; col <= 6; col++) {
+        let d = 유효거리(matrixLidarDistance.matrixPointOutput(라이다주소, col, 7))
+        if (d > 0 && d < 아래행위험거리mm) {
+            if (col <= 3) {
+                leftHit += 1
+            } else {
+                rightHit += 1
+            }
+        }
+    }
+    아래행위험쪽 = rightHit > leftHit ? 1 : (leftHit > rightHit ? -1 : 0)
+    if (leftHit + rightHit > 0) {
+        아래행위험연속 += 1
+    } else {
+        아래행위험연속 = 0
+    }
+    return 아래행위험연속 >= 1
+}
+
 function 범위최소거리(fromCol: number, toCol: number): number {
     let best = 0
     for (let col = fromCol; col <= toCol; col++) {
@@ -119,6 +151,11 @@ function 정면막힘확정(): boolean {
     return 막힘연속 >= 막힘연속필요
 }
 
+function 긴급근접위험(): boolean {
+    let centerNear = 범위최소거리(2, 5)
+    return centerNear > 0 && centerNear < 긴급근접거리mm
+}
+
 function 열린점수(fromCol: number, toCol: number): number {
     let score = 0
     for (let col = fromCol; col <= toCol; col++) {
@@ -141,47 +178,52 @@ function 정지(): void {
 function 전진명령(left: number, right: number): void {
     maqueenPlusV2.controlMotor(maqueenPlusV2.MyEnumMotor.LeftMotor, maqueenPlusV2.MyEnumDir.Forward, 제한값(left, 0, 최고전진속도))
     maqueenPlusV2.controlMotor(maqueenPlusV2.MyEnumMotor.RightMotor, maqueenPlusV2.MyEnumDir.Forward, 제한값(right, 0, 최고전진속도))
+    마지막명령전진 = true
 }
 
 function 후진짧게(): void {
+    마지막명령전진 = false
     maqueenPlusV2.controlMotor(maqueenPlusV2.MyEnumMotor.AllMotor, maqueenPlusV2.MyEnumDir.Backward, 후진속도)
     basic.pause(후진시간ms)
     정지()
     basic.pause(80)
 }
 
-function 좌회전(시간ms: number): void {
-    maqueenPlusV2.controlMotor(maqueenPlusV2.MyEnumMotor.LeftMotor, maqueenPlusV2.MyEnumDir.Backward, 회전속도)
-    maqueenPlusV2.controlMotor(maqueenPlusV2.MyEnumMotor.RightMotor, maqueenPlusV2.MyEnumDir.Forward, 회전속도)
-    basic.pause(시간ms)
+function 각도회전(방향: number, 각도: number): void {
+    마지막명령전진 = false
     정지()
+    basic.pause(80)
+    maqueenPlusV2.pidControlAngle(방향 * 각도, maqueenPlusV2.MyInterruption.NotAllowed)
+    basic.pause(80)
 }
 
-function 우회전(시간ms: number): void {
-    maqueenPlusV2.controlMotor(maqueenPlusV2.MyEnumMotor.LeftMotor, maqueenPlusV2.MyEnumDir.Forward, 회전속도)
-    maqueenPlusV2.controlMotor(maqueenPlusV2.MyEnumMotor.RightMotor, maqueenPlusV2.MyEnumDir.Backward, 회전속도)
-    basic.pause(시간ms)
-    정지()
+function 회피방향계산(): number {
+    if (아래행위험쪽 != 0) {
+        return 0 - 아래행위험쪽
+    }
+    let leftScore = 열린점수(0, 2)
+    let rightScore = 열린점수(5, 7)
+    if (rightScore > leftScore + 좌우점수차이한계) {
+        return 1
+    } else if (leftScore > rightScore + 좌우점수차이한계) {
+        return -1
+    } else if (마지막회전방향 != 0) {
+        return 0 - 마지막회전방향
+    }
+    return 1
 }
 
-function 회피회전(): void {
+function 회피회전(강제정밀탐색: boolean): void {
     정지()
     basic.showIcon(IconNames.No)
     후진짧게()
-    전체장면읽기()
-
-    let leftScore = 열린점수(0, 2)
-    let rightScore = 열린점수(5, 7)
-    let 방향 = 0
-    if (rightScore > leftScore + 좌우점수차이한계) {
-        방향 = 1
-    } else if (leftScore > rightScore + 좌우점수차이한계) {
-        방향 = -1
-    } else if (마지막회전방향 != 0) {
-        방향 = 0 - 마지막회전방향
-    } else {
-        방향 = 1
+    if (강제정밀탐색 || 실패연속 >= 정밀탐색실패한계) {
+        정밀탐색360()
+        return
     }
+
+    전체장면읽기()
+    let 방향 = 회피방향계산()
 
     if (방향 == 마지막회전방향) {
         같은방향회전수 += 1
@@ -190,18 +232,14 @@ function 회피회전(): void {
     }
     마지막회전방향 = 방향
 
-    let turnTime = 같은방향회전수 > 같은방향회전한계 || 실패연속 >= 3 ? 큰회전시간ms : 기본회전시간ms
-    if (방향 > 0) {
-        우회전(turnTime)
-    } else {
-        좌회전(turnTime)
-    }
+    let 각도 = 같은방향회전수 > 같은방향회전한계 || 실패연속 >= 3 ? 큰회전각도 : 기본회전각도
+    각도회전(방향, 각도)
 }
 
 function 자연회피전진(): void {
     let centerNear = 범위최소거리(2, 5)
     let base = 현재속도
-    if (centerNear > 0 && centerNear < 감속거리mm) {
+    if (centerNear > 0 && centerNear < 회피시작거리mm) {
         base = 저속전진속도
     } else if (현재속도 < 최고전진속도) {
         현재속도 += 1
@@ -209,13 +247,92 @@ function 자연회피전진(): void {
 
     let leftNear = 범위최소거리(1, 3)
     let rightNear = 범위최소거리(4, 6)
-    if (leftNear == 0) leftNear = 감속거리mm
-    if (rightNear == 0) rightNear = 감속거리mm
+    if (leftNear == 0) leftNear = 회피시작거리mm
+    if (rightNear == 0) rightNear = 회피시작거리mm
 
-    // 왼쪽이 더 가까우면 오른쪽으로, 오른쪽이 더 가까우면 왼쪽으로 완만하게 휩니다.
-    let steer = 제한값(Math.round((leftNear - rightNear) * 조향최대보정 / 감속거리mm), -조향최대보정, 조향최대보정)
+    let steer = 0
+    if (centerNear > 0 && centerNear < 회피시작거리mm) {
+        steer = 제한값(Math.round((leftNear - rightNear) * 조향최대보정 / 회피시작거리mm), -조향최대보정, 조향최대보정)
+    }
     전진명령(base - steer, base + steer)
     basic.showArrow(ArrowNames.North)
+}
+
+function 정지감지됨(): boolean {
+    let now = input.runningTime()
+    if (!마지막명령전진 || now - 마지막정지감지시각 < 정지감지주기ms) return false
+    마지막정지감지시각 = now
+    let left = maqueenPlusV2.readRealTimeSpeed(maqueenPlusV2.DirectionType2.Left)
+    let right = maqueenPlusV2.readRealTimeSpeed(maqueenPlusV2.DirectionType2.Right)
+    return left <= 정지감지속도기준 && right <= 정지감지속도기준
+}
+
+function 점수용거리(d: number): number {
+    if (d == 0 || d > 열린거리상한mm) return 열린거리상한mm
+    return d
+}
+
+function 정밀탐색점수(): number {
+    전체장면읽기()
+    let score = 0
+    for (let col = 0; col < 8; col++) {
+        let weight = 1
+        if (col >= 2 && col <= 5) weight = 3
+        score += 점수용거리(열거리[col]) * weight
+        if (열거리[col] > 0 && 열거리[col] < 정지거리mm) {
+            score -= 900
+        }
+    }
+    for (let col2 = 1; col2 <= 6; col2++) {
+        let d2 = 유효거리(matrixLidarDistance.matrixPointOutput(라이다주소, col2, 7))
+        if (d2 > 0 && d2 < 아래행위험거리mm) score -= 1200
+    }
+    return score
+}
+
+function 후보삽입(각목록: number[], 점수목록: number[], 각도: number, 점수: number): void {
+    for (let i = 0; i < 정밀탐색후보수; i++) {
+        if (점수 > 점수목록[i]) {
+            for (let j = 정밀탐색후보수 - 1; j > i; j--) {
+                점수목록[j] = 점수목록[j - 1]
+                각목록[j] = 각목록[j - 1]
+            }
+            점수목록[i] = 점수
+            각목록[i] = 각도
+            return
+        }
+    }
+}
+
+function 정밀탐색360(): void {
+    basic.showIcon(IconNames.Diamond)
+    let 후보각 = [0, 0, 0, 0, 0]
+    let 후보점수 = [-999999, -999999, -999999, -999999, -999999]
+    let 현재각 = 0
+    후보삽입(후보각, 후보점수, 현재각, 정밀탐색점수())
+
+    for (let i = 1; i <= 12; i++) {
+        각도회전(1, 정밀탐색간격도)
+        현재각 += 정밀탐색간격도
+        if (현재각 > 180) 현재각 -= 360
+        후보삽입(후보각, 후보점수, 현재각, 정밀탐색점수())
+    }
+
+    let 선택범위 = 0
+    for (let k = 0; k < 정밀탐색후보수; k++) {
+        if (후보점수[k] > -999000) 선택범위 += 1
+    }
+    if (선택범위 <= 0) {
+        선택범위 = 1
+    }
+    let 선택 = randint(0, 선택범위 - 1)
+    let 목표각 = 후보각[선택]
+    if (목표각 != 0) {
+        각도회전(목표각 > 0 ? 1 : -1, Math.abs(목표각))
+    }
+    실패연속 = 0
+    막힘연속 = 0
+    아래행위험연속 = 0
 }
 
 input.onButtonPressed(Button.B, function () {
@@ -223,9 +340,12 @@ input.onButtonPressed(Button.B, function () {
     if (주행중) {
         현재속도 = 시작전진속도
         막힘연속 = 0
+        아래행위험연속 = 0
         실패연속 = 0
         마지막회전방향 = 0
         같은방향회전수 = 0
+        마지막정지감지시각 = input.runningTime()
+        마지막명령전진 = false
         basic.showIcon(IconNames.Yes)
     } else {
         정지()
@@ -241,10 +361,18 @@ basic.forever(function () {
 
     핵심장면읽기()
 
-    if (정면막힘확정()) {
+    if (아래행위험읽기() || 긴급근접위험()) {
         현재속도 = 시작전진속도
         실패연속 += 1
-        회피회전()
+        회피회전(false)
+    } else if (정지감지됨()) {
+        현재속도 = 시작전진속도
+        실패연속 += 정밀탐색실패한계
+        회피회전(true)
+    } else if (정면막힘확정()) {
+        현재속도 = 시작전진속도
+        실패연속 += 1
+        회피회전(false)
     } else {
         if (실패연속 > 0) 실패연속 -= 1
         자연회피전진()
@@ -262,9 +390,11 @@ basic.showIcon(IconNames.Target)
 |---|---:|---|
 | `판정행끝` | 4 | 바닥 때문에 자주 막힌다고 판단하면 3으로 낮춤 |
 | `정지거리mm` | 240 | 너무 가까이 붙으면 280~320으로 올림 |
-| `감속거리mm` | 420 | 더 일찍 부드럽게 피하고 싶으면 500~600으로 올림 |
+| `회피시작거리mm` | 320 | 더 가까이 붙은 뒤 피하려면 낮추고, 더 일찍 피하려면 올림 |
+| `아래행위험거리mm` | 175 | `y=7` 아래 행 근접 위험 기준. 빈 공간에서도 자주 반응하면 낮춤 |
 | `시작전진속도` | 45 | 출발이 안 되면 50, 너무 빠르면 40 |
 | `최고전진속도` | 80 | 너무 빠르면 65~70 |
-| `기본회전시간ms` | 340 | 회전을 너무 조금 하면 400 근처로 올림 |
-| `큰회전시간ms` | 540 | 반복 막힘에서 더 크게 돌아야 하면 650 근처로 올림 |
+| `기본회전각도` | 45 | 일반 회피 각도 |
+| `큰회전각도` | 75 | 반복 막힘에서 더 크게 도는 각도 |
 | `좌우점수차이한계` | 120 | 좌우가 비슷할 때 최근 실패 반대 방향을 더 쉽게 쓰려면 값을 올림 |
+| `정밀탐색실패한계` | 4 | 이 횟수 이상 실패하면 후진 후 360도 정밀 탐색 |
