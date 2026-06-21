@@ -45,7 +45,7 @@ const 정면막힘확인필요 = 2
 const 루프대기ms = 40
 const LCD갱신간격ms = 500
 const 디버그모드 = true
-const 라디오그룹 = 78
+const 라디오그룹 = 77
 const LCD맵칸쓰기지연ms = 5
 const 로그송신지연ms = 20
 // true: 로봇 정면을 마주보고 서 있는 사람 입장에서 거울처럼 보이도록 좌우를 뒤집어 표시
@@ -496,6 +496,44 @@ basic.forever(function () {
     lcd표시(false)
     basic.pause(루프대기ms)
 })
+```
+
+## 무선(라디오) 디버그 콘솔
+
+위 코드에 `디버그모드 = true`일 때 `로그()` 호출이 채널 `77`에 무선 전송되도록
+이미 넣어두었습니다(`로봇초기화()`에서 `radio.setGroup(77)` 설정). 긴 로그가
+잘리지 않도록 19자 단위로 쪼개 보내고 마지막 조각 끝에 `$`를 붙입니다. 주행
+중인 로봇은 송신만 하고 받지는 않으므로, **두 번째 마이크로비트**를 USB로
+PC에 연결해 같은 채널로 라디오를 받아서 `$`가 나올 때까지 조각을 이어붙인 뒤
+시리얼로 출력하는 역할을 맡깁니다. 즉 코드가 2개입니다.
+
+1. **로봇(보내는 쪽)**: 위 자율주행 코드 그대로 사용. 문제 없는 게 확인되면
+   `디버그모드 = false`로 끄세요(라디오 송신도 약간의 틱 시간을 먹습니다).
+2. **수신용 마이크로비트(받는 쪽, 새 프로젝트)**: 아래 코드를 새 MakeCode
+   프로젝트에 붙여넣고, 로봇과는 별개로 USB로 PC에 연결한 채 그대로 둡니다.
+   MakeCode 에디터의 "콘솔" 탭에서 메시지를 그대로 볼 수 있습니다.
+
+```typescript
+// ===== 무선 디버그 수신기 (별도의 마이크로비트, USB로 PC에 연결) =====
+radio.setGroup(77)
+radio.setTransmitPower(7)
+
+serial.writeLine("===== RADIO DEBUG RECEIVER READY (group 77) =====")
+
+let 버퍼 = ""
+
+radio.onReceivedString(function (받은조각: string) {
+    let 종료위치 = 받은조각.indexOf("$")
+    if (종료위치 >= 0) {
+        버퍼 += 받은조각.substr(0, 종료위치)
+        serial.writeLine(버퍼)
+        버퍼 = ""
+    } else {
+        버퍼 += 받은조각
+    }
+})
+
+basic.showIcon(IconNames.Target)
 ```
 
 ## 기본 조정값
