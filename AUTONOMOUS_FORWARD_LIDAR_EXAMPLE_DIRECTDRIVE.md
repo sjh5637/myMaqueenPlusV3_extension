@@ -1,0 +1,938 @@
+# 정면 고정 장착 매트릭스 라이다 8열 회피/탈출 예제 (직접 속도 제어판)
+
+`AUTONOMOUS_FORWARD_LIDAR_EXAMPLE.md`와 라이다 데이터 레이어/회피·탈출 알고리즘은
+동일합니다. 다른 점은 **평상시 전진/긴급 후진의 모터 제어 방식**입니다.
+
+- 원본 파일은 `pidControlDistance()`를 씁니다. 이 함수는 엔코더 PID로 정밀하게
+  목표 거리만큼 가지만, 내부 주행 속도(`speed`)가 `maqueenPlusV3.ts` 라이브러리
+  안에 `2`로 고정돼 있어서 이 예제 파일에서는 속도를 조절할 방법이 없습니다.
+- 이 파일은 평상시 전진/긴급 후진을 `controlMotor()`로 직접 제어합니다.
+  `controlMotor()`는 속도(0~255)를 우리가 직접 줄 수 있어서, 더 느리게(또는
+  빠르게) 튜닝하기 쉽습니다. 단, 엔코더 PID가 아니라서 "정확히 몇 cm"라는
+  정밀 거리 제어는 못 하고, "충분히 트였으면 계속 가고, 막히면 즉시 멈춘다"는
+  식으로 동작합니다(매 틱 40ms마다 다시 확인하므로 실질적으로는 더 촘촘하게
+  반응합니다).
+- **회전 탐색**(`회전탐색시작`/`회전탐색틱`)과 **360도 탈출 폴백**(`탈출360`)은
+  정밀한 각도가 필요해서 원본과 동일하게 엔코더 PID(`pidControlAngle`)를
+  그대로 씁니다 — "엔코더는 회전/탐색에만 쓰고, 직진/후진은 속도로 직접 제어"
+  라는 설계입니다.
+
+라이다 캐시/기준값/delta 추적/우선순위 5단계 구조는 원본과 완전히 동일하므로,
+아래에서는 원본과 같은 코드는 그대로 두고 달라진 부분(상수, 전진/후진 관련
+함수, 메인 루프의 DRIVE/EMERGENCY/BLOCKED 분기)만 설명을 덧붙였습니다.
+
+```typescript
+const LCD주소 = 0x2c
+const 라이다주소 = matrixLidarDistance.Addr.Addr4
+const 라이다무효값mm = 4000
+
+const 정지거리mm = 250
+const 안전거리mm = 400
+
+// 직접 속도 제어 관련 — controlMotor()에 줄 속도(0~255). 기본값 50은 README
+// 예제(controlMotor(..., 100))의 절반 정도로 잡은 시작값이다. 실측 후 튜닝한다.
+const 기본전진속도 = 50
+const 최소전진속도 = 30
+const 최대전진속도 = 80
+const 속도증가스텝 = 5
+const 속도감소스텝 = 10
+const 후진속도 = 60
+const 후진시간ms = 400
+// 정면블록확정()이 "이번 틱에 전진을 허용해도 다음 정면블록확정() 재확인 전까지
+// 안전한가"를 판단할 때 쓰는 고정 여유(mm). 거리 기반 PID와 달리 속도 제어는
+// "이번에 몇 mm 갈지"를 직접 알 수 없어서, 루프 주기(40ms)+캐시 지연을 감안한
+// 고정 버퍼로 대신한다. 속도를 올리면 이 값도 같이 키워야 안전하다(튜닝 필요).
+const 전진여유mm = 120
+
+const 전진성공증가조건 = 3
+const 실패연속한계 = 5
+const 탐색점수상한mm = 1000
+const 탈출최소점수 = 8000
+const 정면막힘확인필요 = 2
+
+const 루프대기ms = 40
+const LCD갱신간격ms = 500
+let 디버그레벨 = 2   // 0=끄기, 1=하트비트/상태전환, 2=델타/타이밍 등 상세까지
+const 라디오그룹 = 77
+const LCD맵칸쓰기지연ms = 5
+const 로그송신지연ms = 20
+// true: 로봇 정면을 마주보고 서 있는 사람 입장에서 거울처럼 보이도록 좌우를 뒤집어 표시
+// (라이다 col0~1=로봇 기준 좌측 장애물이 LED의 오른쪽 칸에 표시됨). 실제로 반대로
+// 보이면 false로 바꾼다. 회피/탈출 조향 계산에는 영향 없음(표시만 반전).
+const LED좌우반전 = true
+
+let 열가중치 = [1, 1.5, 2, 3, 3, 2, 1.5, 1]
+let 탈출각도 = [-90, -45, 0, 45, 90]
+let 탈출각도세밀 = [-90, -75, -60, -45, -30, -15, 0, 15, 30, 45, 60, 75, 90]
+let 탈출각도세밀후방우 = [105, 120, 135, 150, 165, 180]
+let 탈출각도세밀후방좌 = [-105, -120, -135, -150, -165, -180]
+
+let 전진속도 = 기본전진속도
+let 전진성공연속 = 0
+let 주행중 = false
+let 실패연속 = 0
+let 정면막힘연속 = 0
+let 상태 = "BOOT"
+let 마지막판단 = "INIT"
+let 마지막탐색점수 = 0
+let 전역최고점수 = -999999
+let 전역최고절대각 = 0
+let 마지막LCD시각 = 0
+let 마지막하트비트시각 = 0
+let 출발요청 = false
+let 주행시작됨 = false
+
+const 하트비트간격ms = 1000
+
+function 로그(내용: string): void {
+    if (디버그레벨 < 1) return
+    let 전체 = input.runningTime() + "ms " + 내용
+    let 위치 = 0
+    while (true) {
+        let 남음 = 전체.length - 위치
+        if (남음 <= 18) {
+            radio.sendString(전체.substr(위치, 남음) + "$")
+            basic.pause(로그송신지연ms)
+            break
+        } else {
+            radio.sendString(전체.substr(위치, 19))
+            basic.pause(로그송신지연ms)
+            위치 += 19
+        }
+    }
+}
+
+// 디버그레벨 2에서만 보내는 상세 로그(델타 스냅샷, 스캔 사이클 타이밍 등) —
+// 무선 송신 자체가 시간을 쓰므로 평소엔(레벨 1) 끄고 최적화/진단할 때만 켠다.
+function 상세로그(내용: string): void {
+    if (디버그레벨 < 2) return
+    로그(내용)
+}
+
+function lcd명령쓰기(데이터: number[]): void {
+    let 보낼위치 = 0
+    while (보낼위치 < 데이터.length) {
+        let 끝 = Math.min(보낼위치 + 32, 데이터.length)
+        let 조각 = 데이터.slice(보낼위치, 끝)
+        pins.i2cWriteBuffer(LCD주소, pins.createBufferFromArray(조각), 끝 < 데이터.length)
+        보낼위치 = 끝
+        basic.pause(LCD맵칸쓰기지연ms)
+    }
+}
+
+function lcd명령(명령: number, 데이터: number[]): void {
+    let 전체길이 = 데이터.length + 4
+    let 패킷 = [0x55, 0xaa, 전체길이 - 3, 명령]
+    for (let i = 0; i < 데이터.length; i++) 패킷.push(데이터[i])
+    lcd명령쓰기(패킷)
+}
+
+function utf8바이트(문자열: string): number[] {
+    let 결과: number[] = []
+    for (let i = 0; i < 문자열.length; i++) {
+        let c = 문자열.charCodeAt(i)
+        if (c <= 0x7f) {
+            결과.push(c)
+        } else if (c <= 0x7ff) {
+            결과.push(0xc0 | (c >> 6))
+            결과.push(0x80 | (c & 0x3f))
+        } else {
+            결과.push(0xe0 | (c >> 12))
+            결과.push(0x80 | ((c >> 6) & 0x3f))
+            결과.push(0x80 | (c & 0x3f))
+        }
+    }
+    return 결과
+}
+
+function lcd지우기(): void {
+    lcd명령(0x1d, [])
+    basic.pause(1500)
+}
+
+function lcd배경색(색: number): void {
+    lcd명령(0x19, [(색 >> 16) & 0xff, (색 >> 8) & 0xff, 색 & 0xff])
+    basic.pause(300)
+}
+
+function lcd문자(번호: number, x: number, y: number, 내용: string, 색: number): void {
+    let 데이터 = [
+        번호,
+        2,
+        (색 >> 16) & 0xff,
+        (색 >> 8) & 0xff,
+        색 & 0xff,
+        (x >> 8) & 0xff,
+        x & 0xff,
+        (y >> 8) & 0xff,
+        y & 0xff
+    ]
+    let 바이트 = utf8바이트(내용)
+    for (let i = 0; i < 바이트.length; i++) 데이터.push(바이트[i])
+    lcd명령(0x18, 데이터)
+}
+
+function lcd줄(번호: number, 내용: string, 색: number): void {
+    let y목록 = [16, 54, 92, 130, 168]
+    let 표시 = 내용
+    if (표시.length > 26) 표시 = 표시.substr(0, 26)
+    while (표시.length < 26) 표시 += " "
+    lcd문자(번호, 8, y목록[번호 - 1], 표시, 색)
+}
+
+function 거리밝기(거리: number): number {
+    if (거리 <= 0) return 0
+    if (거리 <= 정지거리mm) return 255
+    if (거리 >= 안전거리mm) return 20
+    return Math.round(255 - ((거리 - 정지거리mm) * 235) / (안전거리mm - 정지거리mm))
+}
+
+function 구간최소(거리목록: number[], 시작: number, 끝: number): number {
+    let 최소 = 0
+    for (let col = 시작; col <= 끝; col++) {
+        if (거리목록[col] > 0 && (최소 == 0 || 거리목록[col] < 최소)) 최소 = 거리목록[col]
+    }
+    return 최소
+}
+
+function LED레이더표시(거리목록: number[]): void {
+    let 칸시작 = [0, 2, 3, 4, 6]
+    let 칸끝 = [1, 3, 4, 5, 7]
+    for (let i = 0; i < 5; i++) {
+        let 밝기 = 거리밝기(구간최소(거리목록, 칸시작[i], 칸끝[i]))
+        let ledX = LED좌우반전 ? (4 - i) : i
+        led.plotBrightness(ledX, 2, 밝기)
+    }
+}
+
+function lcd표시(강제: boolean): void {
+    if (!강제 && input.runningTime() - 마지막LCD시각 < LCD갱신간격ms) return
+    마지막LCD시각 = input.runningTime()
+    let 거리목록 = 전체열스캔()
+    lcd줄(1, 상태, 0x000000)
+    lcd줄(2, "DEC " + 마지막판단, 0x0000ff)
+    lcd줄(3, "L" + 구간최소(거리목록, 0, 1) + " F" + 구간최소(거리목록, 3, 4) + " R" + 구간최소(거리목록, 6, 7), 0xaa00aa)
+    lcd줄(4, "SPD " + 전진속도 + " FAIL " + 실패연속, 0x008000)
+    lcd줄(5, "SCORE " + 마지막탐색점수, 0x000000)
+    LED레이더표시(거리목록)
+}
+
+function lcd대기표시(강제: boolean): void {
+    if (!강제 && input.runningTime() - 마지막LCD시각 < LCD갱신간격ms) return
+    마지막LCD시각 = input.runningTime()
+    lcd줄(1, "FORWARD LIDAR READY", 0x000000)
+    lcd줄(2, "B = START", 0x0000ff)
+    lcd줄(3, "NO CALIBRATION NEEDED", 0x008000)
+    lcd줄(4, "", 0xffffff)
+    lcd줄(5, "", 0xffffff)
+}
+
+function 로봇초기화(): void {
+    if (디버그레벨 >= 1) {
+        radio.setGroup(라디오그룹)
+        radio.setTransmitPower(7)
+    }
+    maqueenPlusV2.I2CInit()
+    matrixLidarDistance.initialize(라이다주소, matrixLidarDistance.Matrix.MAT)
+    basic.pause(500)
+    로그("BOOT FORWARD LIDAR DIRECTDRIVE")
+    lcd지우기()
+    lcd배경색(0xffffff)
+    lcd줄(1, "FORWARD LIDAR READY", 0x000000)
+    lcd줄(2, "B = START", 0x0000ff)
+    lcd줄(3, "NO CALIBRATION NEEDED", 0x008000)
+}
+
+// 출발 직전(카운트다운 끝)에 8x8 64칸을 전부 한 번 읍어서 "평소 배경"으로
+// 저장한다. row4~7은 바닥과 교차해 항상 가깝게 읍히지만(60도 수직 FOV를 8행으로
+// 나누면 완전히 수평으로 달아도 아래쪽 행은 바닥을 본다), 그 자체를 버리지 않고
+// "이 칸은 평소 이 정도 거리(바닥)였다"로 기억해둔 뒤, 실시간 스캔에서 그
+// 거리와 거의 같으면 배경(바닥)으로, 뚜렷이 가까워지면 새로 들어온 장애물로
+// 판단한다 — 8x8 전체를 다 쓰면서도 바닥 오탐을 피하고, 바닥 쪽에 실제로
+// 뭔가 끼어들어도 실시간으로 잡아낸다.
+let 기준값: number[] = []
+let 기준값준비됨 = false
+const 기준값여유mm = 60
+
+let 캐시: number[] = []
+let 캐시갱신시각: number[] = []
+for (let i = 0; i < 64; i++) {
+    캐시.push(0)
+    캐시갱신시각.push(0)
+}
+let 마지막사이클ms = 0
+
+function 캐시최대나이ms(): number {
+    let 지금 = input.runningTime()
+    let 최대 = 0
+    for (let i = 0; i < 64; i++) {
+        let 나이 = 지금 - 캐시갱신시각[i]
+        if (나이 > 최대) 최대 = 나이
+    }
+    return 최대
+}
+
+let 직전판정: number[] = []
+let 델타: number[] = []
+for (let i = 0; i < 64; i++) {
+    직전판정.push(-1)
+    델타.push(0)
+}
+const 긴급delta한계mm = 80
+const 긴급최대거리mm = 500
+const 진행확인시간ms = 1000
+const 최소진행mm = 20
+
+function 기준값측정(): void {
+    기준값 = []
+    for (let row = 0; row < 8; row++) {
+        for (let col = 0; col < 8; col++) {
+            기준값.push(matrixLidarDistance.matrixPointOutput(라이다주소, col, row))
+        }
+    }
+    기준값준비됨 = true
+    로그("BASELINE(row0-7|col0-7) " + 행렬64문자열(기준값))
+}
+
+function 출발카운트다운(): void {
+    상태 = "START"
+    로그("START COUNTDOWN")
+    for (let n = 3; n > 0; n--) {
+        마지막판단 = "START " + n
+        lcd줄(1, "START " + n, 0x000000)
+        lcd줄(2, "FRONT LIDAR SCAN", 0x0000ff)
+        basic.showNumber(n)
+        basic.pause(1000)
+    }
+    기준값측정()
+    basic.clearScreen()
+    로그("DRIVE START")
+}
+
+// raw 한 칸을 "장애물 판단용 값"으로 바꾼다: 0=확실히 열림(배경과 일치 포함),
+// -1=모름(글리치), 양수=실제 장애물 거리. 기준(그 칸의 평소 배경 거리)이 없거나
+// (보정 전, raw==0 글리치였던 칸) 기준 자체가 "확실한 감지없음"이었던 칸이면
+// 지금 읍은 값을 그대로 신뢰한다. 기준이 실측 거리(대개 바닥)였던 칸은, 지금
+// 값이 그 기준보다 기준값여유mm 이상 가까워졌을 때만 "새 장애물"로 인정한다.
+// (raw가 정지거리mm보다 가까우면 기준값과 무관하게 항상 장애물로 보는 안전장치를
+// 시도해본 적이 있는데, row7(바닥)이 회전해도 거리가 거의 안 바뀌어서 — 매번
+// "장애물"로 잡혀 회전 탐색이 영원히 못 빠져나가는 심각한 회귀를 일으켰다.
+// 그래서 기준값 비교만 쓴다. 카운트다운을 마침 벽 앞에서 누르면 그 벽이 평생
+// "열림"으로 보이는 한계는 남아있지만, 트인 곳에서 보정하라는 사용 안내로
+// 대응하는 게 바닥을 영원히 못 빠져나가는 것보다 낫다.)
+function 셀판정(raw: number, 기준: number): number {
+    if (raw >= 라이다무효값mm) return 0
+    if (raw == 0) return -1
+    if (기준 <= 0 || 기준 >= 라이다무효값mm) return raw
+    if (raw >= 기준 - 기준값여유mm) return 0
+    return raw
+}
+
+// 캐시[row*8+col]의 raw 값에 그 칸의 기준값을 적용해 판정한다. 백그라운드
+// 스캐너가 이미 갱신해둔 캐시를 읍는 것이므로 이 함수 자체는 I2C를 건드리지 않는다.
+function 캐시판정(col: number, row: number): number {
+    let idx = row * 8 + col
+    let raw = 캐시[idx]
+    let 기준 = 기준값준비됨 ? 기준값[idx] : -1
+    return 셀판정(raw, 기준)
+}
+
+function 열값읍기(col: number, 행시작: number, 행끝: number): number {
+    let 최소 = -1
+    let 센티널확인 = false
+    for (let row = 행시작; row <= 행끝; row++) {
+        let 값 = 캐시판정(col, row)
+        if (값 == 0) {
+            센티널확인 = true
+        } else if (값 > 0) {
+            if (최소 < 0 || 값 < 최소) 최소 = 값
+        }
+        // 값 == -1(글리치)은 무시 — 열림으로도 막힘으로도 셈하지 않음
+    }
+    if (최소 >= 0) return 최소
+    if (센티널확인) return 0
+    return -1
+}
+
+// 정밀도레벨이 최고(정밀도레벨개수-1)면 위쪽 절반(row0~3)만 보되, 빠른모드맨아래행주기틱
+// 마다 한 번은 전체(row0~7)를 본다 — 가까이 다가갈수록 낮은 장애물이 아래쪽 행에서만
+// 보일 수 있어서, 빠른 모드에서도 주기적으로는 놓치지 않게 한다. 그 외 레벨은 항상
+// 전체 행을 본다(천천히/꼼꼼).
+function 열최소읍기(col: number): number {
+    if (정밀도레벨 >= 정밀도레벨개수 - 1) {
+        빠른모드틱카운터 += 1
+        if (빠른모드틱카운터 % 빠른모드맨아래행주기틱 != 0) {
+            return 열값읍기(col, 0, 3)
+        }
+    }
+    return 열값읍기(col, 0, 7)
+}
+
+// 매 틱 1회만 호출한다(같은 셀을 여러 번 비교하면 직전판정이 망가진다). 64칸 전체의
+// "지금 판정값 - 직전 판정값"을 델타[]에 채운다. 둘 중 하나라도 "모름(-1)"이면
+// 비교 불가로 보고 0(변화없음)으로 처리한다.
+function 델타갱신(): void {
+    for (let row = 0; row < 8; row++) {
+        for (let col = 0; col < 8; col++) {
+            let idx = row * 8 + col
+            let 지금 = 캐시판정(col, row)
+            let 이전 = 직전판정[idx]
+            // 둘 다 실측 장애물 거리(양수)일 때만 의미 있는 변화량을 만든다.
+            // 한쪽이라도 "확실히 열림(0)"이거나 "모름(-1)"이면 그 센티널을
+            // 진짜 숫자 0처럼 빼버리는 순간 부호가 거꾸로 나온다 — 예를 들어
+            // 장애물(실측 900대)이 사라져 열림(0)으로 바뀐 "안전해진" 경우가
+            // 델타 = 900 - 0 = +900으로 계산되어 "급접근"으로 오인되고, 반대로
+            // 열림(0)에서 갑자기 실측 장애물이 나타난 진짜 위험한 경우는 델타가
+            // 음수가 되어 전혀 안 잡혔다. 그래서 0/-1이 섞인 전환은 delta로
+            // 보지 않고 0(변화없음)으로 둔다 — "갑자기 가까워짐"은 실측 거리가
+            // 있는 상태에서 실측 거리로 더 가까워질 때만 잡는다.
+            델타[idx] = (이전 > 0 && 지금 > 0) ? (이전 - 지금) : 0
+            직전판정[idx] = 지금
+        }
+    }
+}
+
+// 필터링 전 raw 캐시(전체64로그)와 그 raw에서 계산된 delta(64칸 전부)를 판단
+// 직전에 그대로 로그로 보낸다 — row0~1만 보는 게 맞는 좁히기인지, 다른 행/열도
+// 같이 봐야 하는지를 사용자가 실측 데이터로 직접 검증/조정할 수 있게 한다.
+// 디버그레벨 2(상세)에서만 보낸다.
+function 델타64로그(): void {
+    상세로그("DELTA(row0-7|col0-7) " + 행렬64문자열(델타))
+}
+
+// 정면 중앙 4열(2~5) 중 한 칸이라도 한 틱 사이 긴급delta한계mm 이상 가까워지고,
+// 동시에 "지금" 거리 자체가 긴급최대거리mm 이내일 때만 위험 후보로 본다. delta만
+// 보고 절대 거리를 안 따졌을 때, 실측 로그에서 700~1500mm처럼 먼 거리에 있는
+// 물체의 정상적인 ToF 센서 흔들림(먼 거리일수록 더 큼)만으로도 80mm 이상
+// 차이가 자주 나서 — 진짜 가까운 장애물 없이도 긴급정지가 계속 발동했다(예:
+// 1294mm -> 1199mm, 95mm 차이지만 둘 다 멀어서 전혀 위험하지 않은 변화).
+// row0~1만 본다(row2~7은 제외) — 실측 BASELINE 로그에서 row0/1은 8열 전체가
+// 일정한 값(노이즈 적음)인데, row2 아래로는 같은 칸이라도 스캔마다 크게 흔들렸다.
+// 백그라운드 스캐너 한 바퀴(약 0.7~0.8초)가 메인 루프 틱(40ms)보다 훨씬 느려서,
+// delta 비교가 사실상 "거의 1초 전 값과 지금 값"을 비교하는 셈이라 노이즈가
+// 더 잘 드러난다. 이 좁히기/거리 조건이 맞는지는 아래 전체64로그()/델타64로그()
+// 출력으로 직접 확인해 필요하면 조정한다.
+// 추가로 정면블록확정()과 같은 식으로 "긴급확인필요(2)틱 연속" 확인을 거친다 —
+// 단 한 틱짜리 튐(오작동)으로 즉시 발동하지 않고, 다음 틱에도 같은 위험 후보가
+// 다시 보여야 진짜 위험으로 확정한다. 후보가 안 보이면 그 즉시 카운터를 리셋한다.
+let 긴급연속 = 0
+const 긴급확인필요 = 2
+
+function 정면긴급위험(): boolean {
+    전체64로그()
+    델타64로그()
+    let 중앙열 = [2, 3, 4, 5]
+    for (let i = 0; i < 중앙열.length; i++) {
+        let col = 중앙열[i]
+        for (let row = 0; row < 2; row++) {
+            let idx = row * 8 + col
+            let 지금 = 직전판정[idx]
+            if (델타[idx] >= 긴급delta한계mm && 지금 > 0 && 지금 <= 긴급최대거리mm) {
+                긴급연속 += 1
+                로그("DELTA EMERGENCY CANDIDATE " + 긴급연속 + "/" + 긴급확인필요
+                    + " col" + col + " row" + row + " delta" + 델타[idx] + " now" + 지금)
+                return 긴급연속 >= 긴급확인필요
+            }
+        }
+    }
+    긴급연속 = 0
+    return false
+}
+
+let 진행추적시작시각 = 0
+let 진행추적시작거리 = -1
+
+// col2~5(정면안전이 보는 폭) 중 가장 가까운 값을 본다 — col3 하나만 보면 실측
+// 로그에서 col3가 유독 자주 흔들리는 열이라 진행 측정 자체가 노이즈에 약했다.
+// 0(열림)인 칸은 무시하고, 실측 장애물이 있는 칸 중 최솟값을 기준으로 삼는다.
+function 정면추적거리(): number {
+    let 칸들 = [2, 3, 4, 5]
+    let 최소 = -1
+    for (let i = 0; i < 칸들.length; i++) {
+        let 값 = 열최소읍기(칸들[i])
+        if (값 > 0 && (최소 < 0 || 값 < 최소)) 최소 = 값
+    }
+    return 최소
+}
+
+function 진행추적초기화(): void {
+    진행추적시작시각 = input.runningTime()
+    진행추적시작거리 = 정면추적거리()
+}
+
+// 전진 중일 때만 호출한다. 정면 중앙 4열 중 가장 가까운 거리가 진행확인시간ms
+// 동안 최소진행mm 이상 바뀌지 않으면 "라이다로 안 보이는 것에 막혔거나 바퀴가
+// 헛돌고 있다"로 판단한다. 추적할 기준 거리가 없으면(트인 공간, 4열 모두 0/-1)
+// 그냥 새로 추적을 시작하고 false를 반환한다 — 열린 공간에서는 진행량을 측정할
+// 기준이 없으므로 문제 삼지 않는다.
+function 헛돌이감지(): boolean {
+    if (진행추적시작거리 <= 0) {
+        진행추적초기화()
+        return false
+    }
+    if (input.runningTime() - 진행추적시작시각 < 진행확인시간ms) return false
+    let 지금거리 = 정면추적거리()
+    let 변화 = 지금거리 <= 0 ? 999999 : Math.abs(진행추적시작거리 - 지금거리)
+    진행추적초기화()
+    if (변화 < 최소진행mm) {
+        로그("STUCK/SLIP detected: moved only " + 변화 + "mm in " + 진행확인시간ms + "ms")
+        return true
+    }
+    return false
+}
+
+function 전체열스캔(): number[] {
+    let 결과: number[] = []
+    for (let col = 0; col < 8; col++) {
+        결과.push(열최소읍기(col))
+    }
+    return 결과
+}
+
+function 칸안전(거리: number, 추가여유mm: number): boolean {
+    if (거리 < 0) return false
+    if (거리 == 0) return true
+    return 거리 >= 정지거리mm + 추가여유mm
+}
+
+// col3,4(중앙 2열, ±7.5도)만 보면 가까운 거리에서는 로봇 차체 폭보다 좁은
+// 영역만 확인하는 셈이라(예: 300mm 거리에서 2열 폭은 약 80mm뿐), col2~5
+// 4열(±15도)로 넓혀 차체 폭에 더 가깝게 정면 안전을 확인한다.
+function 정면안전(추가여유mm: number): boolean {
+    return 칸안전(열최소읍기(2), 추가여유mm) && 칸안전(열최소읍기(3), 추가여유mm)
+        && 칸안전(열최소읍기(4), 추가여유mm) && 칸안전(열최소읍기(5), 추가여유mm)
+}
+
+// 추가여유mm로 전진여유mm(고정값)을 넘긴다 — 속도 직접 제어라 "이번에 몇 mm
+// 갈지"를 정확히 모르므로, 거리 기반 적응 스텝 대신 루프 주기/캐시 지연을
+// 감안한 고정 버퍼를 쓴다.
+function 정면블록확정(): boolean {
+    if (정면안전(전진여유mm)) {
+        if (정면막힘연속 > 0) 로그("FRONT CLEAR AGAIN (was " + 정면막힘연속 + ")")
+        정면막힘연속 = 0
+        return false
+    }
+    정면막힘연속 += 1
+    로그("FRONT BLOCKED CHECK " + 정면막힘연속 + "/" + 정면막힘확인필요)
+    return 정면막힘연속 >= 정면막힘확인필요
+}
+
+let 회전탐색중 = false
+let 회전탐색방향 = 1
+let 회전탐색시작시각 = 0
+let 회전탐색반복횟수 = 0
+const 회전1회각도 = 170
+const 회전1회예상ms = 4000
+const 회전탐색최대반복 = 3
+
+let 정밀도레벨 = 0
+let 빠른모드틱카운터 = 0
+const 정밀도레벨개수 = 3
+const 정밀도증가조건 = 3
+const 빠른모드맨아래행주기틱 = 5
+
+// 정밀도 레벨과 전진속도를 같은 신호(연속 성공/실패)로 함께 조정한다 — 익숙한
+// 공간에서는 속도를 점점 올리고(최대전진속도까지), 회피/탈출이 발생하면 속도를
+// 깎는다(최소전진속도까지). 거리 기반 적응 스텝 대신 "속도"가 적응 대상이다.
+function 정밀도증가확인(): void {
+    전진성공연속 += 1
+    if (전진성공연속 >= 전진성공증가조건) {
+        전진성공연속 = 0
+        전진속도 = Math.min(최대전진속도, 전진속도 + 속도증가스텝)
+        if (정밀도레벨 < 정밀도레벨개수 - 1) {
+            정밀도레벨 += 1
+            로그("PRECISION UP -> " + 정밀도레벨 + " speed=" + 전진속도)
+        }
+    }
+}
+
+function 정밀도소폭감소(): void {
+    전진성공연속 = 0
+    전진속도 = Math.max(최소전진속도, 전진속도 - 속도감소스텝)
+    if (정밀도레벨 > 0) {
+        정밀도레벨 -= 1
+        로그("PRECISION DOWN -> " + 정밀도레벨 + " speed=" + 전진속도)
+    }
+}
+
+function 정밀도리셋(): void {
+    전진성공연속 = 0
+    전진속도 = 최소전진속도
+    if (정밀도레벨 != 0) {
+        정밀도레벨 = 0
+        로그("PRECISION RESET -> 0 speed=" + 전진속도)
+    }
+}
+
+// pidControlAngle(.., Allowed)는 회전 명령만 던지고 즉시 반환한다(완료를 기다리지
+// 않음) — 그래서 메인 루프가 회전 중에도 계속 돌면서 캐시를 확인할 수 있다.
+// 회전 탐색은 정밀한 각도가 필요해 원본과 동일하게 엔코더 PID를 그대로 쓴다.
+function 회전탐색시작(): void {
+    회전탐색중 = true
+    회전탐색방향 = Math.random() < 0.5 ? 1 : -1
+    회전탐색반복횟수 = 0
+    상태 = "SEARCH"
+    마지막판단 = "ROTATE " + (회전탐색방향 > 0 ? "CW" : "CCW")
+    로그("ROTATE SEARCH START dir=" + 회전탐색방향)
+    maqueenPlusV2.pidControlAngle(회전탐색방향 * 회전1회각도, maqueenPlusV2.MyInterruption.Allowed)
+    회전탐색시작시각 = input.runningTime()
+}
+
+// 매 틱 호출한다. 충분한 공간을 찾으면 그 자리에서 즉시 멈추고(pidControlStop)
+// 회전탐색중을 false로 만든다 — 다음 틱에 메인 루프가 평상시 전진으로 넘어간다.
+// 한 번의 170도 회전이 끝났을 시간(회전1회예상ms)이 지났는데도 못 찾았으면 같은
+// 방향으로 한 번 더 돌리고, 회전탐색최대반복(약 510도)을 넘기면 포기하고
+// 회전탐색중을 false로 만든다(이 경우 실패연속 증가/탈출 판단은 메인 루프가
+// 다음 정면블록확정() 체크에서 자연스럽게 처리한다).
+function 회전탐색틱(): void {
+    if (정면안전(0)) {
+        maqueenPlusV2.pidControlStop()
+        회전탐색중 = false
+        실패연속 = 0
+        마지막판단 = "FOUND DURING ROTATE"
+        로그("ROTATE SEARCH FOUND, stopping")
+        return
+    }
+    if (input.runningTime() - 회전탐색시작시각 >= 회전1회예상ms) {
+        회전탐색반복횟수 += 1
+        if (회전탐색반복횟수 >= 회전탐색최대반복) {
+            maqueenPlusV2.pidControlStop()
+            회전탐색중 = false
+            마지막판단 = "ROTATE SEARCH EXHAUSTED"
+            로그("ROTATE SEARCH EXHAUSTED after " + 회전탐색반복횟수 + " turns")
+            return
+        }
+        maqueenPlusV2.pidControlAngle(회전탐색방향 * 회전1회각도, maqueenPlusV2.MyInterruption.Allowed)
+        회전탐색시작시각 = input.runningTime()
+    }
+}
+
+// 64개짜리 평면 배열(row*8+col 순서)을 row 단위로 "|" 구분, 한 줄 안에서는
+// col0~7을 ","로 구분한 문자열로 만든다 — RAW 덤프/기준값 로그가 공유한다.
+function 행렬64문자열(배열: number[]): string {
+    let 결과 = ""
+    for (let row = 0; row < 8; row++) {
+        if (row > 0) 결과 += "|"
+        for (let col = 0; col < 8; col++) {
+            if (col > 0) 결과 += ","
+            결과 += 배열[row * 8 + col]
+        }
+    }
+    return 결과
+}
+
+// 백그라운드 스캐너가 갱신해둔 캐시를 그대로 로그로 보낸다(필터링 이전 raw 값).
+// 64개 값 전부라 디버그레벨 2(상세)에서만 보낸다 — 막힘이 막 확정된 시점에
+// 호출해서, 최적화/진단 시 "왜 막힘으로 판단했는지"를 raw 단계까지 볼 수 있게 한다.
+function 전체64로그(): void {
+    상세로그("RAW(row0-7|col0-7) " + 행렬64문자열(캐시))
+}
+
+function 점수용거리(원시거리: number): number {
+    if (원시거리 < 0) return 0
+    if (원시거리 == 0) return 탐색점수상한mm
+    return Math.min(원시거리, 탐색점수상한mm)
+}
+
+function 탐색점수계산(): number {
+    let 거리목록 = 전체열스캔()
+    let 점수 = 0
+    for (let col = 0; col < 8; col++) {
+        let 거리 = 점수용거리(거리목록[col])
+        점수 += 거리 * 열가중치[col]
+    }
+    return 점수
+}
+
+// 진입절대각: 이 단계의 각도목록이 측정하는 각 후보각이 탈출360() 진입 헤딩(0) 기준
+// 절대적으로 몇 도인지(현재는 모든 단계가 같은 진입 헤딩에서 시작하므로 0). 단계가
+// 탈출최소점수를 못 넘기더라도 전역최고점수/전역최고절대각에 후보를 계속 누적해서,
+// 4단계를 모두 거치고도 기준을 못 넘긴 경우 "그나마 가장 나은 방향"을 알 수 있게 한다.
+// 360도 탈출도 정밀한 각도가 필요해 원본과 동일하게 엔코더 PID를 그대로 쓴다.
+function 열각도순회탐색(각도목록: number[], 진입절대각: number): number {
+    let 최고점수 = -999999
+    let 최고각 = 각도목록[0]
+    maqueenPlusV2.pidControlAngle(각도목록[0], maqueenPlusV2.MyInterruption.NotAllowed)
+    for (let i = 0; i < 각도목록.length; i++) {
+        let 후보각 = 각도목록[i]
+        let 점수 = 탐색점수계산()
+        if (점수 > 최고점수) {
+            최고점수 = 점수
+            최고각 = 후보각
+        }
+        if (점수 > 전역최고점수) {
+            전역최고점수 = 점수
+            전역최고절대각 = 진입절대각 + 후보각
+        }
+        로그("ESCAPE DIR " + 후보각 + " SCORE " + 점수)
+        if (i < 각도목록.length - 1) {
+            maqueenPlusV2.pidControlAngle(각도목록[i + 1] - 각도목록[i], maqueenPlusV2.MyInterruption.NotAllowed)
+        }
+    }
+    let 복귀각 = 최고각 - 각도목록[각도목록.length - 1]
+    마지막탐색점수 = 최고점수
+    maqueenPlusV2.pidControlAngle(복귀각, maqueenPlusV2.MyInterruption.NotAllowed)
+    basic.pause(300)
+    return 최고각
+}
+
+function 탈출360(): boolean {
+    상태 = "ESCAPE"
+    maqueenPlusV2.pidControlStop()
+    전역최고점수 = -999999
+    전역최고절대각 = 0
+
+    let 최고각 = 열각도순회탐색(탈출각도, 0)
+    if (마지막탐색점수 >= 탈출최소점수) return true
+    maqueenPlusV2.pidControlAngle(-최고각, maqueenPlusV2.MyInterruption.NotAllowed)
+
+    상태 = "ESCAPE-FINE"
+    최고각 = 열각도순회탐색(탈출각도세밀, 0)
+    if (마지막탐색점수 >= 탈출최소점수) return true
+    maqueenPlusV2.pidControlAngle(-최고각, maqueenPlusV2.MyInterruption.NotAllowed)
+
+    상태 = "ESCAPE-BACK-R"
+    최고각 = 열각도순회탐색(탈출각도세밀후방우, 0)
+    if (마지막탐색점수 >= 탈출최소점수) return true
+    maqueenPlusV2.pidControlAngle(-최고각, maqueenPlusV2.MyInterruption.NotAllowed)
+
+    상태 = "ESCAPE-BACK-L"
+    최고각 = 열각도순회탐색(탈출각도세밀후방좌, 0)
+    if (마지막탐색점수 >= 탈출최소점수) return true
+
+    // 4단계 모두 절대 기준(탈출최소점수)을 못 넘김 — 그래도 지금까지 본 것 중
+    // 가장 점수가 높았던 방향으로 향한다(현재 헤딩은 마지막 단계가 끝난 위치인
+    // "최고각"). 전역최고점수가 0 이하(사실상 사방이 막힘)일 때만 진짜로 포기한다.
+    let 현재헤딩 = 최고각
+    let 최종회전 = 전역최고절대각 - 현재헤딩
+    // pidControlAngle은 -180~180 범위만 유효(그 이상은 1바이트로 보내져 값이 깨짐) —
+    // 같은 절대 방향이라도 짧은 쪽으로 돌도록 ±360을 더해 범위 안으로 정규화한다.
+    while (최종회전 > 180) 최종회전 -= 360
+    while (최종회전 < -180) 최종회전 += 360
+    마지막탐색점수 = 전역최고점수
+    if (전역최고점수 <= 0) {
+        로그("ALL 360 ESCAPE STAGES FAILED, BEST SCORE " + 전역최고점수 + " -> NO ESCAPE")
+        return false
+    }
+    로그("ALL 360 STAGES BELOW THRESHOLD -> TAKE BEST " + 전역최고절대각 + " SCORE " + 전역최고점수)
+    maqueenPlusV2.pidControlAngle(최종회전, maqueenPlusV2.MyInterruption.NotAllowed)
+    return true
+}
+
+input.onButtonPressed(Button.B, function () {
+    if (!주행시작됨) {
+        로그("BUTTON B PRESSED")
+        출발요청 = true
+    }
+})
+
+로봇초기화()
+
+control.inBackground(function () {
+    while (true) {
+        let 시작 = input.runningTime()
+        for (let row = 0; row < 8; row++) {
+            for (let col = 0; col < 8; col++) {
+                let idx = row * 8 + col
+                캐시[idx] = matrixLidarDistance.matrixPointOutput(라이다주소, col, row)
+                캐시갱신시각[idx] = input.runningTime()
+            }
+        }
+        마지막사이클ms = input.runningTime() - 시작
+        상세로그("SCAN CYCLE " + 마지막사이클ms + "ms")
+    }
+})
+
+basic.forever(function () {
+    if (디버그레벨 >= 1 && input.runningTime() - 마지막하트비트시각 >= 하트비트간격ms) {
+        마지막하트비트시각 = input.runningTime()
+        로그("HB state=" + 상태 + " dec=" + 마지막판단 + " speed=" + 전진속도
+            + " failStreak=" + 실패연속 + " blockStreak=" + 정면막힘연속
+            + " precision=" + 정밀도레벨 + " cacheAge=" + 캐시최대나이ms()
+            + " cycleMs=" + 마지막사이클ms + " started=" + 주행시작됨)
+    }
+
+    if (!주행시작됨) {
+        if (출발요청) {
+            출발요청 = false
+            출발카운트다운()
+            주행시작됨 = true
+        } else {
+            lcd대기표시(false)
+        }
+        basic.pause(루프대기ms)
+        return
+    }
+
+    델타갱신()
+
+    // 우선순위 1: 긴급 위험 — 회전 중이든 전진 중이든 최우선으로 처리. 전진/회전
+    // 둘 다 멈춘 뒤, 모터 속도를 직접 제어해 정해진 시간만큼만 후진한다(엔코더
+    // 거리 제어가 아니므로 거리 대신 시간으로 끊는다). 후진만 하고 끝내면 다음
+    // 틱에 다시 똑같이 막혀서 "긴급후진, 긴급후진"만 반복할 수 있다 — 후진 직후
+    // 바로 회전 탐색을 시작해서, 후진으로 확보한 공간에서 주변을 둘러보고
+    // 실제로 갈 수 있는 방향을 데이터로 찾게 한다.
+    if (정면긴급위험()) {
+        if (주행중) {
+            maqueenPlusV2.controlMotorStop(maqueenPlusV2.MyEnumMotor.AllMotor)
+            주행중 = false
+        }
+        if (회전탐색중) {
+            maqueenPlusV2.pidControlStop()
+            회전탐색중 = false
+        }
+        상태 = "EMERGENCY"
+        마지막판단 = "EMERGENCY BACKOFF"
+        로그("EMERGENCY BACKOFF speed=" + 후진속도 + " for " + 후진시간ms + "ms")
+        maqueenPlusV2.controlMotor(maqueenPlusV2.MyEnumMotor.AllMotor, maqueenPlusV2.MyEnumDir.Backward, 후진속도)
+        basic.pause(후진시간ms)
+        maqueenPlusV2.controlMotorStop(maqueenPlusV2.MyEnumMotor.AllMotor)
+        회전탐색시작()
+        lcd표시(false)
+        basic.pause(루프대기ms)
+        return
+    }
+
+    // 우선순위 2: 회전 탐색 중이면 매 틱 확인(찾으면 즉시 멈추고, 소진되면
+    // 회전탐색중이 false가 되어 아래 평상시 판단으로 자연스럽게 넘어간다)
+    if (회전탐색중) {
+        회전탐색틱()
+        lcd표시(false)
+        basic.pause(루프대기ms)
+        return
+    }
+
+    // 우선순위 3: 평상시 전진/막힘 판단. controlMotor()는 명령을 내리면 바로
+    // 반환하고 모터는 계속 그 속도로 돈다 — 그래서 이미 주행중이면 매 틱마다
+    // 다시 명령을 내릴 필요가 없다(한 번만 걸고, 안전하지 않을 때만 멈춘다).
+    if (!정면블록확정()) {
+        if (정면막힘연속 > 0) {
+            상태 = "CHECK"
+            마지막판단 = "RECHECK " + 정면막힘연속
+        } else {
+            상태 = "DRIVE"
+            마지막판단 = "FWD speed" + 전진속도
+            if (!주행중) {
+                maqueenPlusV2.controlMotor(maqueenPlusV2.MyEnumMotor.AllMotor, maqueenPlusV2.MyEnumDir.Forward, 전진속도)
+                주행중 = true
+            }
+            if (헛돌이감지()) {
+                마지막판단 = "STUCK/SLIP"
+                로그("STUCK/SLIP DETECTED while driving")
+                // 다음 틱에 즉시 "막힘 확정" 분기로 들어가게 강제한다(정면블록확정()의
+                // 내부 카운터를 직접 채움) — 라이다로는 안 보이는 것에 막혔을 때도
+                // 막힘 경로(우선순위 4)로 자연스럽게 이어지게 하기 위함.
+                정면막힘연속 = 정면막힘확인필요
+            } else {
+                정밀도증가확인()
+            }
+        }
+    } else {
+        // 우선순위 4: 막힘 확정 — 직진 모터를 멈추고 회전 탐색 시작, 반복 실패하면 5단계로
+        if (주행중) {
+            maqueenPlusV2.controlMotorStop(maqueenPlusV2.MyEnumMotor.AllMotor)
+            주행중 = false
+        }
+        정면막힘연속 = 0
+        상태 = "BLOCKED"
+        실패연속 += 1
+        마지막판단 = "BLOCKED F" + 실패연속
+        로그("FRONT BLOCKED F" + 실패연속)
+        전체64로그()
+        if (실패연속 >= 실패연속한계) {
+            // 우선순위 5: 최종 폴백 — 기존 360도 굵게->세밀 탐색 재사용
+            정밀도리셋()
+            로그("ESCAPE TRIGGER failStreak=" + 실패연속)
+            let 탈출성공 = 탈출360()
+            if (!탈출성공) {
+                상태 = "NO ESCAPE"
+                마지막판단 = "NO ESCAPE"
+                lcd표시(true)
+                basic.showIcon(IconNames.No)
+                주행시작됨 = false
+                실패연속 = 0
+                basic.pause(루프대기ms)
+                return
+            }
+            로그("ESCAPE SUCCESS score=" + 마지막탐색점수)
+            실패연속 = 0
+        } else {
+            정밀도소폭감소()
+            회전탐색시작()
+        }
+    }
+
+    lcd표시(false)
+    basic.pause(루프대기ms)
+})
+```
+
+## 무선(라디오) 디버그 콘솔
+
+`AUTONOMOUS_FORWARD_LIDAR_EXAMPLE.md`와 동일합니다(같은 채널 77, 같은 수신기
+코드를 그대로 재사용할 수 있습니다).
+
+```typescript
+// ===== 무선 디버그 수신기 (별도의 마이크로비트, USB로 PC에 연결) =====
+radio.setGroup(77)
+radio.setTransmitPower(7)
+
+serial.writeLine("===== RADIO DEBUG RECEIVER READY (group 77) =====")
+
+let 버퍼 = ""
+
+radio.onReceivedString(function (받은조각: string) {
+    let 종료위치 = 받은조각.indexOf("$")
+    if (종료위치 >= 0) {
+        버퍼 += 받은조각.substr(0, 종료위치)
+        serial.writeLine(버퍼)
+        버퍼 = ""
+    } else {
+        버퍼 += 받은조각
+    }
+})
+
+basic.showIcon(IconNames.Target)
+```
+
+## 기본 조정값
+
+| 변수 | 기본값 | 의미 |
+|---|---:|---|
+| `정지거리mm` | 250 | 중앙 4열(col2~5)이 이 거리 미만이면 즉시 정지 |
+| `안전거리mm` | 400 | LED/탈출 점수 계산에서 "열렸다"고 보는 기준거리 |
+| `기본전진속도` | 50 | `controlMotor()`에 주는 시작 속도(0~255). README 예제(100)의 절반 정도 |
+| `최소전진속도` / `최대전진속도` | 30 / 80 | 정밀도 레벨에 따라 가변하는 속도 범위 |
+| `속도증가스텝` / `속도감소스텝` | 5 / 10 | 연속 성공/실패 시 속도를 늘리거나 줄이는 양 |
+| `후진속도` / `후진시간ms` | 60 / 400 | 긴급 후진 시 속도와 지속 시간(엔코더 거리 제어가 아니라 시간으로 끊음) |
+| `전진여유mm` | 120 | 직진 허용 판단 시 더하는 고정 안전 버퍼(루프 주기/캐시 지연 감안, 속도 올리면 같이 키워야 함) |
+| `실패연속한계` | 5 | 막힘 연속 시 회전 탐색→최종 360도 탈출 전환 기준 |
+| `탐색점수상한mm` | 1000 | 점수 계산 시 거리값 상한 |
+| `열가중치` | `[1, 1.5, 2, 3, 3, 2, 1.5, 1]` | 탐색 점수 계산 시 중앙 열에 더 큰 가중치 |
+| `탈출최소점수` | 8000 | 탈출 탐색에서 이 점수 이상이면 그 방향을 채택 |
+| `라이다무효값mm` | 4000 | 이상이면 "감지 없음"으로 0 처리 |
+| `기준값여유mm` | 60 | 칸이 시작 시점 배경(바닥 등)보다 이만큼 가까워야 장애물로 인정 |
+| `긴급delta한계mm` | 80 | 정면 칸이 한 틱 사이 이만큼 가까워지면 절대 거리와 무관하게 긴급 후진 후보 |
+| `진행확인시간ms` / `최소진행mm` | 1000 / 20 | 이 시간 동안 최소 이만큼 안 바뀌면 헛돌이/막힘으로 판단 |
+| `회전1회각도` / `회전1회예상ms` | 170 / 4000 | 회전 탐색 1회 호출 각도와 예상 소요시간(추정값, 튜닝 가능) |
+| `회전탐색최대반복` | 3 | 같은 방향으로 최대 이 횟수(약 510도)까지 돌아도 못 찾으면 포기 |
+| `정밀도레벨개수` / `정밀도증가조건` | 3 / 3 | 정밀도 레벨 단계 수 / 연속 성공 시 레벨 올리는 기준 |
+| `빠른모드맨아래행주기틱` | 5 | 최고 정밀도 레벨에서도 5번에 1번은 맨 아래 행까지 확인 |
+
+## 하드웨어 체크리스트
+
+라이다를 수평·정면으로 장착한 상태에서 다음을 확인한다:
+
+1. 트인 공간에서 `B` 시작 후 평소 주행 속도가 원본 파일보다 느린지(HB 로그의
+   `speed` 값 확인), 시간이 지날수록 `precision`/`speed`가 점진적으로 올라가는지.
+2. 옆에서 갑자기 물체를 가까이 들이댔을 때(회전 탐색 중이든 직진 중이든) 즉시
+   모터를 멈추고 정해진 시간만큼 후진하는지(`EMERGENCY BACKOFF` 로그 확인).
+3. 유리판처럼 라이다로 잘 안 보이는 장애물 앞에서 일정 시간 진행이 없으면
+   `STUCK/SLIP DETECTED` 로그가 뜨고 다른 방향을 시도하는지.
+4. 한쪽이 좁게 막힌 상황에서 회전 탐색이 충분한 공간을 찾는 순간 회전 중간에라도
+   바로 멈추고(`ROTATE SEARCH FOUND` 로그) 전진으로 전환하는지.
+5. 좁은 복도/모서리에서 회전 탐색이 반복 실패해(`실패연속한계`회) 최종 360도
+   탐색(`ESCAPE TRIGGER`)으로 넘어가는지.
+6. 로봇 사방을 완전히 막은 상태에서 최종 360도 탐색도 실패해 `NO ESCAPE`가 뜨는지.
+7. `기본전진속도`/`최대전진속도`를 바꿔보면서 실제 체감 속도와 `전진여유mm`이
+   충분한지(너무 빠르게 했는데 여유가 부족하면 정면블록확정 전에 부딫힐 수 있음).
