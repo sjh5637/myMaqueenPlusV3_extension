@@ -238,6 +238,14 @@ let 기준값: number[] = []
 let 기준값준비됨 = false
 const 기준값여유mm = 60
 
+let 캐시: number[] = []
+let 캐시갱신시각: number[] = []
+for (let i = 0; i < 64; i++) {
+    캐시.push(0)
+    캐시갱신시각.push(0)
+}
+let 마지막사이클ms = 0
+
 function 기준값측정(): void {
     기준값 = []
     for (let row = 0; row < 8; row++) {
@@ -277,13 +285,20 @@ function 셀판정(raw: number, 기준: number): number {
     return raw
 }
 
-function 열최소읍기(col: number): number {
+// 캐시[row*8+col]의 raw 값에 그 칸의 기준값을 적용해 판정한다. 백그라운드
+// 스캐너가 이미 갱신해둔 캐시를 읍는 것이므로 이 함수 자체는 I2C를 건드리지 않는다.
+function 캐시판정(col: number, row: number): number {
+    let idx = row * 8 + col
+    let raw = 캐시[idx]
+    let 기준 = 기준값준비됨 ? 기준값[idx] : -1
+    return 셀판정(raw, 기준)
+}
+
+function 열값읍기(col: number, 행시작: number, 행끝: number): number {
     let 최소 = -1
     let 센티널확인 = false
-    for (let row = 0; row < 8; row++) {
-        let raw = matrixLidarDistance.matrixPointOutput(라이다주소, col, row)
-        let 기준 = 기준값준비됨 ? 기준값[row * 8 + col] : -1
-        let 값 = 셀판정(raw, 기준)
+    for (let row = 행시작; row <= 행끝; row++) {
+        let 값 = 캐시판정(col, row)
         if (값 == 0) {
             센티널확인 = true
         } else if (값 > 0) {
@@ -294,6 +309,10 @@ function 열최소읍기(col: number): number {
     if (최소 >= 0) return 최소
     if (센티널확인) return 0
     return -1
+}
+
+function 열최소읍기(col: number): number {
+    return 열값읍기(col, 0, 7)
 }
 
 function 전체열스캔(): number[] {
@@ -392,17 +411,9 @@ function 행렬64문자열(배열: number[]): string {
     return 결과
 }
 
-// 필터링(4000 센티널 -> 0, raw==0 글리치 -> -1) 이전의 원본 64개 값을 그대로
-// 로그로 보낸다 — "너무 멀어서 4000대"와 "너무 가까워서 4000대"가 실제로 같은
-// 값으로 나오는지 등을 raw 단계에서 직접 확인하기 위한 진단용.
+// 백그라운드 스캐너가 갱신해둔 캐시를 그대로 로그로 보낸다(필터링 이전 raw 값).
 function 전체64로그(): void {
-    let 결과: number[] = []
-    for (let row = 0; row < 8; row++) {
-        for (let col = 0; col < 8; col++) {
-            결과.push(matrixLidarDistance.matrixPointOutput(라이다주소, col, row))
-        }
-    }
-    로그("RAW(row0-7|col0-7) " + 행렬64문자열(결과))
+    로그("RAW(row0-7|col0-7) " + 행렬64문자열(캐시))
 }
 
 function 회피시도(): boolean {
@@ -540,6 +551,20 @@ input.onButtonPressed(Button.B, function () {
 })
 
 로봇초기화()
+
+control.inBackground(function () {
+    while (true) {
+        let 시작 = input.runningTime()
+        for (let row = 0; row < 8; row++) {
+            for (let col = 0; col < 8; col++) {
+                let idx = row * 8 + col
+                캐시[idx] = matrixLidarDistance.matrixPointOutput(라이다주소, col, row)
+                캐시갱신시각[idx] = input.runningTime()
+            }
+        }
+        마지막사이클ms = input.runningTime() - 시작
+    }
+})
 
 basic.forever(function () {
     if (디버그모드 && input.runningTime() - 마지막하트비트시각 >= 하트비트간격ms) {
