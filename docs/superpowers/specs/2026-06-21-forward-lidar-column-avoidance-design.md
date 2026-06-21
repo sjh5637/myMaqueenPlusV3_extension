@@ -123,7 +123,7 @@ function 회피시도(): boolean {
     }
     let 목표각 = Math.round((목표열 - 3.5) * 7.5)
     maqueenPlusV2.pidControlAngle(목표각, maqueenPlusV2.MyInterruption.NotAllowed)
-    maqueenPlusV2.pidControlDistance(적응전진거리cm, maqueenPlusV2.MyInterruption.NotAllowed)
+    maqueenPlusV2.pidControlDistance(maqueenPlusV2.SpeedDirection.SpeedCW, 적응전진거리cm, maqueenPlusV2.MyInterruption.NotAllowed)
     if (!정면안전()) {
         실패연속 += 1
         로그("AVOID STILL BLOCKED F" + 실패연속)
