@@ -1,6 +1,6 @@
 {
     "name": "maqueenPlusV3",
-    "version": "0.0.19",
+    "version": "0.0.20",
     "description": "This is the latest version of Maqueen Plus, a programming robot for STEAM education.",
     "license": "MIT",
     "dependencies": {

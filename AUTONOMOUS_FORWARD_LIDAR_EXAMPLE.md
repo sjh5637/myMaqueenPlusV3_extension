@@ -930,3 +930,187 @@ basic.showIcon(IconNames.Target)
 6. 로봇 사방을 완전히 막은 상태에서 최종 360도 탐색도 실패해 `NO ESCAPE`가 뜨는지.
 7. `디버그레벨 = 2`로 바꿔서 다시 실행했을 때 `SCAN CYCLE` 사이클 타이밍 로그가
    추가로 찍히는지, 그 값을 보고 캐시 신선도(`cacheAge`)가 합리적인 범위인지.
+---
+
+## 경량 라이다 전용 자율주행 코드
+
+아래 코드는 위의 복잡한 디버그/기준값/델타/백그라운드 스캔 버전 대신 쓰는 경량판입니다.
+
+- 초음파 센서를 쓰지 않습니다.
+- 라디오 로그, LCD 출력, 기준값 캡처, 델타 비교, 360도 긴 탐색을 쓰지 않습니다.
+- 매 루프에서 필요한 LiDAR 열만 단순 판정합니다.
+- 막히기 전에는 한쪽 모터 속도를 조금 더 줘서 자연스럽게 피하고, 너무 가까우면 짧게 후진 후 더 열린 방향으로 회전합니다.
+
+```typescript
+const 라이다주소 = matrixLidarDistance.Addr.Addr4
+const 라이다무효값mm = 4000
+
+const 판정행시작 = 0
+const 판정행끝 = 4
+
+const 정지거리mm = 300
+const 감속거리mm = 520
+const 열린거리상한mm = 1200
+
+const 시작전진속도 = 45
+const 저속전진속도 = 45
+const 최고전진속도 = 80
+const 회전속도 = 55
+const 후진속도 = 45
+const 조향최대보정 = 26
+
+const 루프대기ms = 60
+const 후진시간ms = 260
+const 회전시간ms = 360
+
+let 주행중 = false
+let 열거리 = [0, 0, 0, 0, 0, 0, 0, 0]
+let 현재속도 = 시작전진속도
+
+function 유효거리(raw: number): number {
+    if (raw <= 0 || raw >= 라이다무효값mm) return 0
+    return raw
+}
+
+function 제한값(v: number, lo: number, hi: number): number {
+    if (v < lo) return lo
+    if (v > hi) return hi
+    return v
+}
+
+function 열최소거리(col: number): number {
+    let best = 0
+    for (let row = 판정행시작; row <= 판정행끝; row++) {
+        let d = 유효거리(matrixLidarDistance.matrixPointOutput(라이다주소, col, row))
+        if (d > 0 && (best == 0 || d < best)) best = d
+    }
+    return best
+}
+
+function 장면읽기(): void {
+    for (let col = 0; col < 8; col++) {
+        열거리[col] = 열최소거리(col)
+    }
+}
+
+function 범위최소거리(fromCol: number, toCol: number): number {
+    let best = 0
+    for (let col = fromCol; col <= toCol; col++) {
+        let d = 열거리[col]
+        if (d > 0 && (best == 0 || d < best)) best = d
+    }
+    return best
+}
+
+function 막힌중앙열수(): number {
+    let count = 0
+    for (let col = 2; col <= 5; col++) {
+        if (열거리[col] > 0 && 열거리[col] < 정지거리mm) count += 1
+    }
+    return count
+}
+
+function 열린점수(fromCol: number, toCol: number): number {
+    let score = 0
+    for (let col = fromCol; col <= toCol; col++) {
+        let d = 열거리[col]
+        if (d == 0 || d > 열린거리상한mm) {
+            score += 열린거리상한mm
+        } else {
+            score += d
+        }
+    }
+    return score
+}
+
+function 정지(): void {
+    maqueenPlusV2.controlMotorStop(maqueenPlusV2.MyEnumMotor.AllMotor)
+}
+
+function 전진명령(left: number, right: number): void {
+    maqueenPlusV2.controlMotor(maqueenPlusV2.MyEnumMotor.LeftMotor, maqueenPlusV2.MyEnumDir.Forward, 제한값(left, 0, 최고전진속도))
+    maqueenPlusV2.controlMotor(maqueenPlusV2.MyEnumMotor.RightMotor, maqueenPlusV2.MyEnumDir.Forward, 제한값(right, 0, 최고전진속도))
+}
+
+function 후진짧게(): void {
+    maqueenPlusV2.controlMotor(maqueenPlusV2.MyEnumMotor.AllMotor, maqueenPlusV2.MyEnumDir.Backward, 후진속도)
+    basic.pause(후진시간ms)
+    정지()
+    basic.pause(80)
+}
+
+function 좌회전(): void {
+    maqueenPlusV2.controlMotor(maqueenPlusV2.MyEnumMotor.LeftMotor, maqueenPlusV2.MyEnumDir.Backward, 회전속도)
+    maqueenPlusV2.controlMotor(maqueenPlusV2.MyEnumMotor.RightMotor, maqueenPlusV2.MyEnumDir.Forward, 회전속도)
+    basic.pause(회전시간ms)
+    정지()
+}
+
+function 우회전(): void {
+    maqueenPlusV2.controlMotor(maqueenPlusV2.MyEnumMotor.LeftMotor, maqueenPlusV2.MyEnumDir.Forward, 회전속도)
+    maqueenPlusV2.controlMotor(maqueenPlusV2.MyEnumMotor.RightMotor, maqueenPlusV2.MyEnumDir.Backward, 회전속도)
+    basic.pause(회전시간ms)
+    정지()
+}
+
+function 회피회전(): void {
+    정지()
+    후진짧게()
+    장면읽기()
+    if (열린점수(5, 7) > 열린점수(0, 2)) {
+        우회전()
+    } else {
+        좌회전()
+    }
+}
+
+function 자연회피전진(): void {
+    let centerNear = 범위최소거리(2, 5)
+    let base = 현재속도
+    if (centerNear > 0 && centerNear < 감속거리mm) {
+        base = 저속전진속도
+    } else if (현재속도 < 최고전진속도) {
+        현재속도 += 1
+    }
+
+    let leftNear = 범위최소거리(1, 3)
+    let rightNear = 범위최소거리(4, 6)
+    if (leftNear == 0) leftNear = 감속거리mm
+    if (rightNear == 0) rightNear = 감속거리mm
+
+    let steer = 제한값(Math.round((leftNear - rightNear) * 조향최대보정 / 감속거리mm), -조향최대보정, 조향최대보정)
+    전진명령(base - steer, base + steer)
+}
+
+input.onButtonPressed(Button.B, function () {
+    주행중 = !(주행중)
+    if (!주행중) {
+        정지()
+        basic.showIcon(IconNames.Target)
+    } else {
+        현재속도 = 시작전진속도
+        basic.showIcon(IconNames.Yes)
+    }
+})
+
+basic.forever(function () {
+    if (!주행중) {
+        basic.pause(100)
+        return
+    }
+
+    장면읽기()
+
+    if (막힌중앙열수() >= 2) {
+        현재속도 = 시작전진속도
+        회피회전()
+    } else {
+        자연회피전진()
+        basic.showArrow(ArrowNames.North)
+    }
+
+    basic.pause(루프대기ms)
+})
+
+basic.showIcon(IconNames.Target)
+```
