@@ -422,6 +422,56 @@ function 정면블록확정(): boolean {
     return 정면막힘연속 >= 정면막힘확인필요
 }
 
+let 회전탐색중 = false
+let 회전탐색방향 = 1
+let 회전탐색시작시각 = 0
+let 회전탐색반복횟수 = 0
+const 회전1회각도 = 170
+const 회전1회예상ms = 4000
+const 회전탐색최대반복 = 3
+
+// pidControlAngle(.., Allowed)는 회전 명령만 던지고 즉시 반환한다(완료를 기다리지
+// 않음) — 그래서 메인 루프가 회전 중에도 계속 돌면서 캐시를 확인할 수 있다.
+function 회전탐색시작(): void {
+    회전탐색중 = true
+    회전탐색방향 = Math.random() < 0.5 ? 1 : -1
+    회전탐색반복횟수 = 0
+    상태 = "SEARCH"
+    마지막판단 = "ROTATE " + (회전탐색방향 > 0 ? "CW" : "CCW")
+    로그("ROTATE SEARCH START dir=" + 회전탐색방향)
+    maqueenPlusV2.pidControlAngle(회전탐색방향 * 회전1회각도, maqueenPlusV2.MyInterruption.Allowed)
+    회전탐색시작시각 = input.runningTime()
+}
+
+// 매 틱 호출한다. 충분한 공간을 찾으면 그 자리에서 즉시 멈추고(pidControlStop)
+// 회전탐색중을 false로 만든다 — 다음 틱에 메인 루프가 평상시 전진으로 넘어간다.
+// 한 번의 170도 회전이 끝났을 시간(회전1회예상ms)이 지났는데도 못 찾았으면 같은
+// 방향으로 한 번 더 돌리고, 회전탐색최대반복(약 510도)을 넘기면 포기하고
+// 회전탐색중을 false로 만든다(이 경우 실패연속 증가/탈출 판단은 Task 4의 메인
+// 루프가 다음 정면블록확정() 체크에서 자연스럽게 처리한다).
+function 회전탐색틱(): void {
+    if (정면안전(0)) {
+        maqueenPlusV2.pidControlStop()
+        회전탐색중 = false
+        실패연속 = 0
+        마지막판단 = "FOUND DURING ROTATE"
+        로그("ROTATE SEARCH FOUND, stopping")
+        return
+    }
+    if (input.runningTime() - 회전탐색시작시각 >= 회전1회예상ms) {
+        회전탐색반복횟수 += 1
+        if (회전탐색반복횟수 >= 회전탐색최대반복) {
+            maqueenPlusV2.pidControlStop()
+            회전탐색중 = false
+            마지막판단 = "ROTATE SEARCH EXHAUSTED"
+            로그("ROTATE SEARCH EXHAUSTED after " + 회전탐색반복횟수 + " turns")
+            return
+        }
+        maqueenPlusV2.pidControlAngle(회전탐색방향 * 회전1회각도, maqueenPlusV2.MyInterruption.Allowed)
+        회전탐색시작시각 = input.runningTime()
+    }
+}
+
 function 안전전진거리cm(목표열: number, 거리목록: number[]): number {
     let 인접열 = Math.round(목표열)
     if (인접열 < 0) 인접열 = 0
