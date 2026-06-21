@@ -66,6 +66,8 @@ let 정면막힘연속 = 0
 let 상태 = "BOOT"
 let 마지막판단 = "INIT"
 let 마지막탐색점수 = 0
+let 전역최고점수 = -999999
+let 전역최고절대각 = 0
 let 마지막LCD시각 = 0
 let 마지막하트비트시각 = 0
 let 출발요청 = false
@@ -381,7 +383,11 @@ function 탐색점수계산(): number {
     return 점수
 }
 
-function 열각도순회탐색(각도목록: number[]): number {
+// 진입절대각: 이 단계의 각도목록이 측정하는 각 후보각이 탈출360() 진입 헤딩(0) 기준
+// 절대적으로 몇 도인지(현재는 모든 단계가 같은 진입 헤딩에서 시작하므로 0). 단계가
+// 탈출최소점수를 못 넘기더라도 전역최고점수/전역최고절대각에 후보를 계속 누적해서,
+// 4단계를 모두 거치고도 기준을 못 넘긴 경우 "그나마 가장 나은 방향"을 알 수 있게 한다.
+function 열각도순회탐색(각도목록: number[], 진입절대각: number): number {
     let 최고점수 = -999999
     let 최고각 = 각도목록[0]
     maqueenPlusV2.pidControlAngle(각도목록[0], maqueenPlusV2.MyInterruption.NotAllowed)
@@ -391,6 +397,10 @@ function 열각도순회탐색(각도목록: number[]): number {
         if (점수 > 최고점수) {
             최고점수 = 점수
             최고각 = 후보각
+        }
+        if (점수 > 전역최고점수) {
+            전역최고점수 = 점수
+            전역최고절대각 = 진입절대각 + 후보각
         }
         로그("ESCAPE DIR " + 후보각 + " SCORE " + 점수)
         if (i < 각도목록.length - 1) {
@@ -407,27 +417,44 @@ function 열각도순회탐색(각도목록: number[]): number {
 function 탈출360(): boolean {
     상태 = "ESCAPE"
     maqueenPlusV2.pidControlStop()
+    전역최고점수 = -999999
+    전역최고절대각 = 0
 
-    let 최고각 = 열각도순회탐색(탈출각도)
+    let 최고각 = 열각도순회탐색(탈출각도, 0)
     if (마지막탐색점수 >= 탈출최소점수) return true
     maqueenPlusV2.pidControlAngle(-최고각, maqueenPlusV2.MyInterruption.NotAllowed)
 
     상태 = "ESCAPE-FINE"
-    최고각 = 열각도순회탐색(탈출각도세밀)
+    최고각 = 열각도순회탐색(탈출각도세밀, 0)
     if (마지막탐색점수 >= 탈출최소점수) return true
     maqueenPlusV2.pidControlAngle(-최고각, maqueenPlusV2.MyInterruption.NotAllowed)
 
     상태 = "ESCAPE-BACK-R"
-    최고각 = 열각도순회탐색(탈출각도세밀후방우)
+    최고각 = 열각도순회탐색(탈출각도세밀후방우, 0)
     if (마지막탐색점수 >= 탈출최소점수) return true
     maqueenPlusV2.pidControlAngle(-최고각, maqueenPlusV2.MyInterruption.NotAllowed)
 
     상태 = "ESCAPE-BACK-L"
-    최고각 = 열각도순회탐색(탈출각도세밀후방좌)
+    최고각 = 열각도순회탐색(탈출각도세밀후방좌, 0)
     if (마지막탐색점수 >= 탈출최소점수) return true
 
-    로그("ALL 360 ESCAPE STAGES FAILED -> NO ESCAPE")
-    return false
+    // 4단계 모두 절대 기준(탈출최소점수)을 못 넘김 — 그래도 지금까지 본 것 중
+    // 가장 점수가 높았던 방향으로 향한다(현재 헤딩은 마지막 단계가 끝난 위치인
+    // "최고각"). 전역최고점수가 0 이하(사실상 사방이 막힘)일 때만 진짜로 포기한다.
+    let 현재헤딩 = 최고각
+    let 최종회전 = 전역최고절대각 - 현재헤딩
+    // pidControlAngle은 -180~180 범위만 유효(그 이상은 1바이트로 보내져 값이 깨짐) —
+    // 같은 절대 방향이라도 짧은 쪽으로 돌도록 ±360을 더해 범위 안으로 정규화한다.
+    while (최종회전 > 180) 최종회전 -= 360
+    while (최종회전 < -180) 최종회전 += 360
+    마지막탐색점수 = 전역최고점수
+    if (전역최고점수 <= 0) {
+        로그("ALL 360 ESCAPE STAGES FAILED, BEST SCORE " + 전역최고점수 + " -> NO ESCAPE")
+        return false
+    }
+    로그("ALL 360 STAGES BELOW THRESHOLD -> TAKE BEST " + 전역최고절대각 + " SCORE " + 전역최고점수)
+    maqueenPlusV2.pidControlAngle(최종회전, maqueenPlusV2.MyInterruption.NotAllowed)
+    return true
 }
 
 input.onButtonPressed(Button.B, function () {
