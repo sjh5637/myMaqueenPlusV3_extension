@@ -246,6 +246,16 @@ for (let i = 0; i < 64; i++) {
 }
 let 마지막사이클ms = 0
 
+let 직전판정: number[] = []
+let 델타: number[] = []
+for (let i = 0; i < 64; i++) {
+    직전판정.push(-1)
+    델타.push(0)
+}
+const 긴급delta한계mm = 80
+const 진행확인시간ms = 1000
+const 최소진행mm = 20
+
 function 기준값측정(): void {
     기준값 = []
     for (let row = 0; row < 8; row++) {
@@ -313,6 +323,66 @@ function 열값읍기(col: number, 행시작: number, 행끝: number): number {
 
 function 열최소읍기(col: number): number {
     return 열값읍기(col, 0, 7)
+}
+
+// 매 틱 1회만 호출한다(같은 셀을 여러 번 비교하면 직전판정이 망가진다). 64칸 전체의
+// "지금 판정값 - 직전 판정값"을 델타[]에 채운다. 둘 중 하나라도 "모름(-1)"이면
+// 비교 불가로 보고 0(변화없음)으로 처리한다.
+function 델타갱신(): void {
+    for (let row = 0; row < 8; row++) {
+        for (let col = 0; col < 8; col++) {
+            let idx = row * 8 + col
+            let 지금 = 캐시판정(col, row)
+            let 이전 = 직전판정[idx]
+            델타[idx] = (이전 < 0 || 지금 < 0) ? 0 : (이전 - 지금)
+            직전판정[idx] = 지금
+        }
+    }
+}
+
+// 정면 중앙 4열(2~5) 중 한 칸이라도 한 틱 사이 긴급delta한계mm 이상 가까워졌으면
+// 절대 거리와 무관하게 위험으로 본다 — 회전 중이든 전진 중이든 매 틱 호출한다.
+function 정면긴급위험(): boolean {
+    let 중앙열 = [2, 3, 4, 5]
+    for (let i = 0; i < 중앙열.length; i++) {
+        let col = 중앙열[i]
+        for (let row = 0; row < 8; row++) {
+            let idx = row * 8 + col
+            if (델타[idx] >= 긴급delta한계mm) {
+                로그("DELTA EMERGENCY col" + col + " row" + row + " delta" + 델타[idx])
+                return true
+            }
+        }
+    }
+    return false
+}
+
+let 진행추적시작시각 = 0
+let 진행추적시작거리 = -1
+
+function 진행추적초기화(): void {
+    진행추적시작시각 = input.runningTime()
+    진행추적시작거리 = 열최소읍기(3)
+}
+
+// 전진 중일 때만 호출한다. 정면 중앙(col3)의 거리가 진행확인시간ms 동안 최소진행mm
+// 이상 바뀌지 않으면 "라이다로 안 보이는 것에 막혔거나 바퀴가 헛돌고 있다"로 판단한다.
+// 추적할 기준 거리가 없으면(트인 공간, col3가 0/-1) 그냥 새로 추적을 시작하고
+// false를 반환한다 — 열린 공간에서는 진행량을 측정할 기준이 없으므로 문제 삼지 않는다.
+function 헛돌이감지(): boolean {
+    if (진행추적시작거리 <= 0) {
+        진행추적초기화()
+        return false
+    }
+    if (input.runningTime() - 진행추적시작시각 < 진행확인시간ms) return false
+    let 지금거리 = 열최소읍기(3)
+    let 변화 = 지금거리 <= 0 ? 999999 : Math.abs(진행추적시작거리 - 지금거리)
+    진행추적초기화()
+    if (변화 < 최소진행mm) {
+        로그("STUCK/SLIP detected: moved only " + 변화 + "mm in " + 진행확인시간ms + "ms")
+        return true
+    }
+    return false
 }
 
 function 전체열스캔(): number[] {
