@@ -40,6 +40,7 @@ const 전진실패감소cm = 2
 const 실패연속한계 = 5
 const 탐색점수상한mm = 1000
 const 탈출최소점수 = 8000
+const 정면막힘확인필요 = 2
 
 const 루프대기ms = 40
 const LCD갱신간격ms = 500
@@ -47,6 +48,10 @@ const 디버그모드 = true
 const 라디오그룹 = 78
 const LCD맵칸쓰기지연ms = 5
 const 로그송신지연ms = 20
+// true: 로봇 정면을 마주보고 서 있는 사람 입장에서 거울처럼 보이도록 좌우를 뒤집어 표시
+// (라이다 col0~1=로봇 기준 좌측 장애물이 LED의 오른쪽 칸에 표시됨). 실제로 반대로
+// 보이면 false로 바꾼다. 회피/탈출 조향 계산에는 영향 없음(표시만 반전).
+const LED좌우반전 = true
 
 let 열가중치 = [1, 1.5, 2, 3, 3, 2, 1.5, 1]
 let 탈출각도 = [-90, -45, 0, 45, 90]
@@ -57,12 +62,16 @@ let 탈출각도세밀후방좌 = [-105, -120, -135, -150, -165, -180]
 let 적응전진거리cm = 전진거리cm
 let 전진성공연속 = 0
 let 실패연속 = 0
+let 정면막힘연속 = 0
 let 상태 = "BOOT"
 let 마지막판단 = "INIT"
 let 마지막탐색점수 = 0
 let 마지막LCD시각 = 0
+let 마지막하트비트시각 = 0
 let 출발요청 = false
 let 주행시작됨 = false
+
+const 하트비트간격ms = 1000
 
 function 로그(내용: string): void {
     if (!디버그모드) return
@@ -173,7 +182,8 @@ function LED레이더표시(거리목록: number[]): void {
     let 칸끝 = [1, 3, 4, 5, 7]
     for (let i = 0; i < 5; i++) {
         let 밝기 = 거리밝기(구간최소(거리목록, 칸시작[i], 칸끝[i]))
-        led.plotBrightness(i, 2, 밝기)
+        let ledX = LED좌우반전 ? (4 - i) : i
+        led.plotBrightness(ledX, 2, 밝기)
     }
 }
 
@@ -217,6 +227,7 @@ function 로봇초기화(): void {
 
 function 출발카운트다운(): void {
     상태 = "START"
+    로그("START COUNTDOWN")
     for (let n = 3; n > 0; n--) {
         마지막판단 = "START " + n
         lcd줄(1, "START " + n, 0x000000)
@@ -225,6 +236,7 @@ function 출발카운트다운(): void {
         basic.pause(1000)
     }
     basic.clearScreen()
+    로그("DRIVE START")
 }
 
 function 열최소읍기(col: number): number {
@@ -251,6 +263,28 @@ function 정면안전(): boolean {
     let c3 = 열최소읍기(3)
     let c4 = 열최소읍기(4)
     return (c3 == 0 || c3 >= 정지거리mm) && (c4 == 0 || c4 >= 정지거리mm)
+}
+
+function 정면블록확정(): boolean {
+    if (정면안전()) {
+        if (정면막힘연속 > 0) 로그("FRONT CLEAR AGAIN (was " + 정면막힘연속 + ")")
+        정면막힘연속 = 0
+        return false
+    }
+    정면막힘연속 += 1
+    로그("FRONT BLOCKED CHECK " + 정면막힘연속 + "/" + 정면막힘확인필요)
+    return 정면막힘연속 >= 정면막힘확인필요
+}
+
+function 안전전진거리cm(목표열: number, 거리목록: number[]): number {
+    let 인접열 = Math.round(목표열)
+    if (인접열 < 0) 인접열 = 0
+    if (인접열 > 7) 인접열 = 7
+    let 측정mm = 거리목록[인접열]
+    if (측정mm <= 0) return 적응전진거리cm
+    let 여유cm = Math.floor((측정mm - 정지거리mm) / 10)
+    if (여유cm < 최소전진거리cm) return 최소전진거리cm
+    return Math.min(적응전진거리cm, 여유cm)
 }
 
 function 최선열찾기(거리목록: number[]): number {
@@ -288,8 +322,10 @@ function 회피시도(): boolean {
         return false
     }
     let 목표각 = Math.round((목표열 - 3.5) * 7.5)
+    let 전진cm = 안전전진거리cm(목표열, 거리목록)
+    로그("AVOID TURN " + 목표각 + " GO " + 전진cm + "cm (step " + 적응전진거리cm + ")")
     maqueenPlusV2.pidControlAngle(목표각, maqueenPlusV2.MyInterruption.NotAllowed)
-    maqueenPlusV2.pidControlDistance(maqueenPlusV2.SpeedDirection.SpeedCW, 적응전진거리cm, maqueenPlusV2.MyInterruption.NotAllowed)
+    maqueenPlusV2.pidControlDistance(maqueenPlusV2.SpeedDirection.SpeedCW, 전진cm, maqueenPlusV2.MyInterruption.NotAllowed)
     if (!정면안전()) {
         실패연속 += 1
         전진성공연속 = 0
@@ -369,12 +405,21 @@ function 탈출360(): boolean {
 }
 
 input.onButtonPressed(Button.B, function () {
-    if (!주행시작됨) 출발요청 = true
+    if (!주행시작됨) {
+        로그("BUTTON B PRESSED")
+        출발요청 = true
+    }
 })
 
 로봇초기화()
 
 basic.forever(function () {
+    if (디버그모드 && input.runningTime() - 마지막하트비트시각 >= 하트비트간격ms) {
+        마지막하트비트시각 = input.runningTime()
+        로그("HB state=" + 상태 + " dec=" + 마지막판단 + " step=" + 적응전진거리cm
+            + " failStreak=" + 실패연속 + " blockStreak=" + 정면막힘연속 + " started=" + 주행시작됨)
+    }
+
     if (!주행시작됨) {
         if (출발요청) {
             출발요청 = false
@@ -387,15 +432,25 @@ basic.forever(function () {
         return
     }
 
-    if (정면안전()) {
+    if (!정면블록확정()) {
+        if (정면막힘연속 > 0) {
+            상태 = "CHECK"
+            마지막판단 = "RECHECK " + 정면막힘연속
+            lcd표시(false)
+            basic.pause(루프대기ms)
+            return
+        }
         상태 = "DRIVE"
         마지막판단 = "FWD " + 적응전진거리cm + "cm"
         maqueenPlusV2.pidControlDistance(maqueenPlusV2.SpeedDirection.SpeedCW, 적응전진거리cm, maqueenPlusV2.MyInterruption.NotAllowed)
     } else {
         maqueenPlusV2.pidControlStop()
+        정면막힘연속 = 0
         상태 = "AVOID"
+        로그("AVOID START")
         let 회피성공 = 회피시도()
         if (!회피성공 && 실패연속 >= 실패연속한계) {
+            로그("ESCAPE TRIGGER failStreak=" + 실패연속)
             let 탈출성공 = 탈출360()
             if (!탈출성공) {
                 상태 = "NO ESCAPE"
@@ -407,6 +462,7 @@ basic.forever(function () {
                 basic.pause(루프대기ms)
                 return
             }
+            로그("ESCAPE SUCCESS score=" + 마지막탐색점수)
             실패연속 = 0
         }
     }
