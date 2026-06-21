@@ -239,16 +239,27 @@ function 출발카운트다운(): void {
     로그("DRIVE START")
 }
 
+// 반환값: 양수 = 실제로 본 가장 가까운 장애물 거리(mm, 보수적/안전 우선),
+// 0 = 8행 중 적어도 한 행이 센티널(라이다무효값mm 이상, 확실한 "감지 없음")을 본 경우,
+// -1 = 유효한 측정도, 센티널도 못 봤음(전부 raw==0 글리치) — 판단 불가, "모름".
+// raw==0 글리치를 센티널과 같은 0으로 합쳐버리면 실제 장애물이 있는데도 8행이 동시에
+// 글리치 날 때 "확실히 열림"으로 오판할 수 있어 구분한다(실제 캘리브레이션 로그에서
+// 주변 행이 ~300mm인데 한 행만 0을 찍는 글리치가 관찰됨).
 function 열최소읍기(col: number): number {
-    let 최소 = 0
+    let 최소 = -1
+    let 센티널확인 = false
     for (let row = 0; row < 8; row++) {
         let raw = matrixLidarDistance.matrixPointOutput(라이다주소, col, row)
-        let mm = raw >= 라이다무효값mm ? 0 : raw
-        if (mm > 0 && (최소 == 0 || mm < 최소)) {
-            최소 = mm
+        if (raw >= 라이다무효값mm) {
+            센티널확인 = true
+        } else if (raw > 0) {
+            if (최소 < 0 || raw < 최소) 최소 = raw
         }
+        // raw == 0(글리치)은 무시 — 열림으로도 막힘으로도 셈하지 않음
     }
-    return 최소
+    if (최소 >= 0) return 최소
+    if (센티널확인) return 0
+    return -1
 }
 
 function 전체열스캔(): number[] {
@@ -259,10 +270,16 @@ function 전체열스캔(): number[] {
     return 결과
 }
 
+function 칸안전(거리: number): boolean {
+    if (거리 < 0) return false
+    if (거리 == 0) return true
+    return 거리 >= 정지거리mm
+}
+
 function 정면안전(): boolean {
     let c3 = 열최소읍기(3)
     let c4 = 열최소읍기(4)
-    return (c3 == 0 || c3 >= 정지거리mm) && (c4 == 0 || c4 >= 정지거리mm)
+    return 칸안전(c3) && 칸안전(c4)
 }
 
 function 정면블록확정(): boolean {
@@ -281,7 +298,8 @@ function 안전전진거리cm(목표열: number, 거리목록: number[]): number
     if (인접열 < 0) 인접열 = 0
     if (인접열 > 7) 인접열 = 7
     let 측정mm = 거리목록[인접열]
-    if (측정mm <= 0) return 적응전진거리cm
+    if (측정mm < 0) return 최소전진거리cm
+    if (측정mm == 0) return 적응전진거리cm
     let 여유cm = Math.floor((측정mm - 정지거리mm) / 10)
     if (여유cm < 최소전진거리cm) return 최소전진거리cm
     return Math.min(적응전진거리cm, 여유cm)
@@ -293,6 +311,8 @@ function 최선열찾기(거리목록: number[]): number {
     let 현재시작 = -1
     let 현재길이 = 0
     for (let col = 0; col < 8; col++) {
+        // 거리목록[col] == -1("모름", 글리치만 본 열)은 이 조건 어디에도 해당하지
+        // 않아 자동으로 막힘 취급된다 — 판단 불가 방향으로는 회전하지 않는다.
         let 열림 = 거리목록[col] == 0 || 거리목록[col] >= 안전거리mm
         if (열림) {
             if (현재길이 == 0) 현재시작 = col
@@ -345,11 +365,17 @@ function 회피시도(): boolean {
     return true
 }
 
+function 점수용거리(원시거리: number): number {
+    if (원시거리 < 0) return 0
+    if (원시거리 == 0) return 탐색점수상한mm
+    return Math.min(원시거리, 탐색점수상한mm)
+}
+
 function 탐색점수계산(): number {
     let 거리목록 = 전체열스캔()
     let 점수 = 0
     for (let col = 0; col < 8; col++) {
-        let 거리 = 거리목록[col] == 0 ? 탐색점수상한mm : Math.min(거리목록[col], 탐색점수상한mm)
+        let 거리 = 점수용거리(거리목록[col])
         점수 += 거리 * 열가중치[col]
     }
     return 점수
