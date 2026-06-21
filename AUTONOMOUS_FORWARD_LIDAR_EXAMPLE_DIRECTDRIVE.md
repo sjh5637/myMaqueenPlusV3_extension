@@ -49,6 +49,14 @@ const 직진보정사용 = true
 const 직진보정간격ms = 300
 const 직진보정게인 = 2
 const 직진보정최대 = 12
+// 장애물 조향 보정 — 정면블록확정()이 멈추기 전에(정지거리mm+전진여유mm ≈ 370mm
+// 근방), 그보다 먼 조향거리mm(480mm)에서부터 좌/우 중 더 가까운 쪽 반대로
+// 바퀴 속도를 미리 갈라서 자연스럽게 휘어가게 한다. 완전히 못 피해서 결국
+// 정면블록확정()이 막힘으로 확정하면, 그 다음은 기존 알고리즘(정지→회전탐색→
+// 360도 탈출)이 그대로 이어받는다 — 이 조향 보정은 "막히기 전 미리 피하기"
+// 단계만 담당한다.
+const 조향거리mm = 480
+const 조향최대보정 = 25
 // 정면블록확정()이 "이번 틱에 전진을 허용해도 다음 정면블록확정() 재확인 전까지
 // 안전한가"를 판단할 때 쓰는 고정 여유(mm). 거리 기반 PID와 달리 속도 제어는
 // "이번에 몇 mm 갈지"를 직접 알 수 없어서, 루프 주기(40ms)+캐시 지연을 감안한
@@ -511,9 +519,42 @@ function 제한값(값: number, 최소값: number, 최대값: number): number {
     return Math.max(최소값, Math.min(최대값, 값))
 }
 
+// 한 열의 거리를 "조향 판단용 값"으로 바꾼다 — 열림(0)/모름(-1)은 "충분히 멀다"로
+// 보고 조향거리mm보다 한 단계 더 먼 값으로 취급한다(차이 계산에서 0으로 들어가
+// 양쪽이 똑같이 "안 가까움"으로 상쇄되게 하기 위함).
+function 조향거리값(col: number): number {
+    let 값 = 열최소읍기(col)
+    if (값 <= 0) return 조향거리mm + 1
+    return 값
+}
+
+// col2,3(왼쪽)과 col4,5(오른쪽) 중 더 가까운 쪽을 비교해서, 가까운 쪽 반대로
+// 트는 보정값을 만든다. 양수=오른쪽이 더 가까움(왼쪽으로 틀어야 = 오른쪽
+// 바퀴를 더 빠르게), 음수=왼쪽이 더 가까움(오른쪽으로 틀어야 = 왼쪽 바퀴를
+// 더 빠르게). 직진보정()의 "보정" 변수와 같은 부호 규칙(왼쪽명령 = 속도-보정,
+// 오른쪽명령 = 속도+보정)을 따른다. 양쪽 다 조향거리mm 이상 멀면 0(보정 없음).
+function 장애물조향보정(): number {
+    let 왼쪽 = Math.min(조향거리값(2), 조향거리값(3))
+    let 오른쪽 = Math.min(조향거리값(4), 조향거리값(5))
+    if (왼쪽 >= 조향거리mm && 오른쪽 >= 조향거리mm) return 0
+    let 차이 = 오른쪽 - 왼쪽
+    return Math.round(제한값((차이 / 조향거리mm) * 조향최대보정, -조향최대보정, 조향최대보정))
+}
+
 function 직진모터명령(속도: number): void {
+    let 장애물보정 = 장애물조향보정()
+    if (장애물보정 != 0) {
+        상세로그("STEER bias=" + 장애물보정 + " (+ = turn left, - = turn right)")
+    }
     if (!직진보정사용) {
-        maqueenPlusV2.controlMotor(maqueenPlusV2.MyEnumMotor.AllMotor, maqueenPlusV2.MyEnumDir.Forward, 속도)
+        if (장애물보정 == 0) {
+            maqueenPlusV2.controlMotor(maqueenPlusV2.MyEnumMotor.AllMotor, maqueenPlusV2.MyEnumDir.Forward, 속도)
+            return
+        }
+        let 왼쪽명령단순 = Math.round(제한값(속도 - 장애물보정, 0, 255))
+        let 오른쪽명령단순 = Math.round(제한값(속도 + 장애물보정, 0, 255))
+        maqueenPlusV2.controlMotor(maqueenPlusV2.MyEnumMotor.LeftMotor, maqueenPlusV2.MyEnumDir.Forward, 왼쪽명령단순)
+        maqueenPlusV2.controlMotor(maqueenPlusV2.MyEnumMotor.RightMotor, maqueenPlusV2.MyEnumDir.Forward, 오른쪽명령단순)
         return
     }
     let 왼쪽실속 = maqueenPlusV2.readRealTimeSpeed(maqueenPlusV2.DirectionType2.Left)
@@ -522,8 +563,9 @@ function 직진모터명령(속도: number): void {
     if (왼쪽실속 > 0 || 오른쪽실속 > 0) {
         보정 = 제한값((왼쪽실속 - 오른쪽실속) * 직진보정게인, -직진보정최대, 직진보정최대)
     }
-    let 왼쪽명령 = Math.round(제한값(속도 - 보정, 0, 255))
-    let 오른쪽명령 = Math.round(제한값(속도 + 보정, 0, 255))
+    let 전체보정 = 제한값(보정 + 장애물보정, -(직진보정최대 + 조향최대보정), 직진보정최대 + 조향최대보정)
+    let 왼쪽명령 = Math.round(제한값(속도 - 전체보정, 0, 255))
+    let 오른쪽명령 = Math.round(제한값(속도 + 전체보정, 0, 255))
     maqueenPlusV2.controlMotor(maqueenPlusV2.MyEnumMotor.LeftMotor, maqueenPlusV2.MyEnumDir.Forward, 왼쪽명령)
     maqueenPlusV2.controlMotor(maqueenPlusV2.MyEnumMotor.RightMotor, maqueenPlusV2.MyEnumDir.Forward, 오른쪽명령)
 }
@@ -1212,6 +1254,8 @@ basic.showIcon(IconNames.Target)
 | `후진속도` / `후진시간ms` | 60 / 400 | 긴급 후진 시 속도와 지속 시간(엔코더 거리 제어가 아니라 시간으로 끊음) |
 | `직진보정사용` / `직진보정간격ms` | true / 300 | 좌우 실시간 바퀴 속도를 읽어 빠른 쪽을 낮추고 느린 쪽을 올리는 직진 보정 |
 | `직진보정게인` / `직진보정최대` | 2 / 12 | 좌우 속도 차이를 모터 명령에 반영하는 강도와 최대 보정량 |
+| `조향거리mm` | 480 | 정면블록확정() 막힘 판정(~370mm)보다 먼 거리부터, 좌/우 중 가까운 쪽 반대로 미리 휘기 시작 |
+| `조향최대보정` | 25 | 장애물 조향 보정의 최대 좌우 속도 차이(직진보정최대와 합산되어 적용됨) |
 | `전진여유mm` | 120 | 직진 허용 판단 시 더하는 고정 안전 버퍼(루프 주기/캐시 지연 감안, 속도 올리면 같이 키워야 함) |
 | `직진테스트속도` / `직진테스트시간ms` | 35 / 8000 | A 버튼 raw 수집 테스트의 직진 속도와 최대 시간 |
 | `직진테스트로그간격ms` | 100 | A 버튼 raw 수집 테스트에서 `TF` 로그를 남기는 간격 |
