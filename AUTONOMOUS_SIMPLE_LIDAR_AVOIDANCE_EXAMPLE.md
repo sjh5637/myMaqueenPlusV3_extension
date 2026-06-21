@@ -9,8 +9,9 @@
 1. `B` 버튼을 누르면 시작/정지 토글.
 2. 매 루프마다 LiDAR의 일부 행만 읽어 각 열의 가장 가까운 유효 거리만 계산.
 3. 가운데 열이 가까우면 속도를 낮추고, 왼쪽/오른쪽 가까운 정도 차이로 자연스럽게 한쪽 바퀴 속도를 더 줘서 피함.
-4. 가운데가 너무 가까우면 정지, 짧게 후진, 왼쪽/오른쪽 열린 점수를 비교해서 더 열린 방향으로 회전.
-5. 다시 전진.
+4. 가운데가 너무 가까운 상태가 2번 연속이면 정지, 짧게 후진, 왼쪽/오른쪽 열린 점수를 비교해서 더 열린 방향으로 회전.
+5. 같은 방향 회피가 반복되면 반대 방향을 우선하고, 반복 막힘이면 회전 시간을 늘려 빠져나감.
+6. 다시 전진.
 
 ## 코드
 
@@ -36,11 +37,19 @@ const 조향최대보정 = 26
 
 const 루프대기ms = 60
 const 후진시간ms = 260
-const 회전시간ms = 360
+const 기본회전시간ms = 340
+const 큰회전시간ms = 540
+const 막힘연속필요 = 2
+const 같은방향회전한계 = 2
+const 좌우점수차이한계 = 120
 
 let 주행중 = false
 let 열거리 = [0, 0, 0, 0, 0, 0, 0, 0]
 let 현재속도 = 시작전진속도
+let 막힘연속 = 0
+let 실패연속 = 0
+let 마지막회전방향 = 0
+let 같은방향회전수 = 0
 
 function 유효거리(raw: number): number {
     if (raw <= 0 || raw >= 라이다무효값mm) {
@@ -66,7 +75,15 @@ function 열최소거리(col: number): number {
     return best
 }
 
-function 장면읽기(): void {
+function 핵심장면읽기(): void {
+    열거리[0] = 0
+    열거리[7] = 0
+    for (let col = 1; col <= 6; col++) {
+        열거리[col] = 열최소거리(col)
+    }
+}
+
+function 전체장면읽기(): void {
     for (let col = 0; col < 8; col++) {
         열거리[col] = 열최소거리(col)
     }
@@ -91,6 +108,15 @@ function 막힌중앙열수(): number {
         }
     }
     return count
+}
+
+function 정면막힘확정(): boolean {
+    if (막힌중앙열수() >= 2) {
+        막힘연속 += 1
+    } else {
+        막힘연속 = 0
+    }
+    return 막힘연속 >= 막힘연속필요
 }
 
 function 열린점수(fromCol: number, toCol: number): number {
@@ -124,17 +150,17 @@ function 후진짧게(): void {
     basic.pause(80)
 }
 
-function 좌회전(): void {
+function 좌회전(시간ms: number): void {
     maqueenPlusV2.controlMotor(maqueenPlusV2.MyEnumMotor.LeftMotor, maqueenPlusV2.MyEnumDir.Backward, 회전속도)
     maqueenPlusV2.controlMotor(maqueenPlusV2.MyEnumMotor.RightMotor, maqueenPlusV2.MyEnumDir.Forward, 회전속도)
-    basic.pause(회전시간ms)
+    basic.pause(시간ms)
     정지()
 }
 
-function 우회전(): void {
+function 우회전(시간ms: number): void {
     maqueenPlusV2.controlMotor(maqueenPlusV2.MyEnumMotor.LeftMotor, maqueenPlusV2.MyEnumDir.Forward, 회전속도)
     maqueenPlusV2.controlMotor(maqueenPlusV2.MyEnumMotor.RightMotor, maqueenPlusV2.MyEnumDir.Backward, 회전속도)
-    basic.pause(회전시간ms)
+    basic.pause(시간ms)
     정지()
 }
 
@@ -142,14 +168,33 @@ function 회피회전(): void {
     정지()
     basic.showIcon(IconNames.No)
     후진짧게()
-    장면읽기()
+    전체장면읽기()
 
     let leftScore = 열린점수(0, 2)
     let rightScore = 열린점수(5, 7)
-    if (rightScore > leftScore) {
-        우회전()
+    let 방향 = 0
+    if (rightScore > leftScore + 좌우점수차이한계) {
+        방향 = 1
+    } else if (leftScore > rightScore + 좌우점수차이한계) {
+        방향 = -1
+    } else if (마지막회전방향 != 0) {
+        방향 = 0 - 마지막회전방향
     } else {
-        좌회전()
+        방향 = 1
+    }
+
+    if (방향 == 마지막회전방향) {
+        같은방향회전수 += 1
+    } else {
+        같은방향회전수 = 1
+    }
+    마지막회전방향 = 방향
+
+    let turnTime = 같은방향회전수 > 같은방향회전한계 || 실패연속 >= 3 ? 큰회전시간ms : 기본회전시간ms
+    if (방향 > 0) {
+        우회전(turnTime)
+    } else {
+        좌회전(turnTime)
     }
 }
 
@@ -177,6 +222,10 @@ input.onButtonPressed(Button.B, function () {
     주행중 = !(주행중)
     if (주행중) {
         현재속도 = 시작전진속도
+        막힘연속 = 0
+        실패연속 = 0
+        마지막회전방향 = 0
+        같은방향회전수 = 0
         basic.showIcon(IconNames.Yes)
     } else {
         정지()
@@ -190,12 +239,14 @@ basic.forever(function () {
         return
     }
 
-    장면읽기()
+    핵심장면읽기()
 
-    if (막힌중앙열수() >= 2) {
+    if (정면막힘확정()) {
         현재속도 = 시작전진속도
+        실패연속 += 1
         회피회전()
     } else {
+        if (실패연속 > 0) 실패연속 -= 1
         자연회피전진()
     }
 
@@ -214,4 +265,6 @@ basic.showIcon(IconNames.Target)
 | `감속거리mm` | 420 | 더 일찍 부드럽게 피하고 싶으면 500~600으로 올림 |
 | `시작전진속도` | 45 | 출발이 안 되면 50, 너무 빠르면 40 |
 | `최고전진속도` | 80 | 너무 빠르면 65~70 |
-| `회전시간ms` | 360 | 회전을 너무 조금 하면 430, 너무 많이 하면 300 |
+| `기본회전시간ms` | 340 | 회전을 너무 조금 하면 400 근처로 올림 |
+| `큰회전시간ms` | 540 | 반복 막힘에서 더 크게 돌아야 하면 650 근처로 올림 |
+| `좌우점수차이한계` | 120 | 좌우가 비슷할 때 최근 실패 반대 방향을 더 쉽게 쓰려면 값을 올림 |
