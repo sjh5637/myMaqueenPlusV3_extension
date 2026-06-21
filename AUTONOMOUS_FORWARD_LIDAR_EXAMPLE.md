@@ -253,6 +253,62 @@ function 정면안전(): boolean {
     return (c3 == 0 || c3 >= 정지거리mm) && (c4 == 0 || c4 >= 정지거리mm)
 }
 
+function 최선열찾기(거리목록: number[]): number {
+    let 최선시작 = -1
+    let 최선길이 = 0
+    let 현재시작 = -1
+    let 현재길이 = 0
+    for (let col = 0; col < 8; col++) {
+        let 열림 = 거리목록[col] == 0 || 거리목록[col] >= 안전거리mm
+        if (열림) {
+            if (현재길이 == 0) 현재시작 = col
+            현재길이 += 1
+            if (현재길이 > 최선길이) {
+                최선길이 = 현재길이
+                최선시작 = 현재시작
+            }
+        } else {
+            현재길이 = 0
+        }
+    }
+    if (최선길이 < 최소그룹폭열수) return -1
+    let 중심열 = 최선시작 + (최선길이 - 1) / 2
+    return 중심열
+}
+
+function 회피시도(): boolean {
+    let 거리목록 = 전체열스캔()
+    let 목표열 = 최선열찾기(거리목록)
+    if (목표열 < 0) {
+        실패연속 += 1
+        전진성공연속 = 0
+        적응전진거리cm = Math.max(최소전진거리cm, 적응전진거리cm - 전진실패감소cm)
+        마지막판단 = "NO GAP F" + 실패연속
+        로그("AVOID NO GAP F" + 실패연속)
+        return false
+    }
+    let 목표각 = Math.round((목표열 - 3.5) * 7.5)
+    maqueenPlusV2.pidControlAngle(목표각, maqueenPlusV2.MyInterruption.NotAllowed)
+    maqueenPlusV2.pidControlDistance(maqueenPlusV2.SpeedDirection.SpeedCW, 적응전진거리cm, maqueenPlusV2.MyInterruption.NotAllowed)
+    if (!정면안전()) {
+        실패연속 += 1
+        전진성공연속 = 0
+        적응전진거리cm = Math.max(최소전진거리cm, 적응전진거리cm - 전진실패감소cm)
+        마지막판단 = "STILL BLOCKED F" + 실패연속
+        로그("AVOID STILL BLOCKED F" + 실패연속)
+        return false
+    }
+    실패연속 = 0
+    전진성공연속 += 1
+    if (전진성공연속 >= 전진성공증가조건) {
+        전진성공연속 = 0
+        적응전진거리cm = Math.min(최대전진거리cm, 적응전진거리cm + 전진성공증가cm)
+    }
+    마지막판단 = "AVOID OK col" + 목표열
+    로그("AVOID OK col" + 목표열 + " angle" + 목표각)
+    return true
+}
+
 input.onButtonPressed(Button.B, function () {
     if (!주행시작됨) 출발요청 = true
 })
@@ -278,8 +334,8 @@ basic.forever(function () {
         maqueenPlusV2.pidControlDistance(maqueenPlusV2.SpeedDirection.SpeedCW, 적응전진거리cm, maqueenPlusV2.MyInterruption.NotAllowed)
     } else {
         maqueenPlusV2.pidControlStop()
-        상태 = "STOP"
-        마지막판단 = "FRONT BLOCKED"
+        상태 = "AVOID"
+        회피시도()
     }
 
     lcd표시(false)
