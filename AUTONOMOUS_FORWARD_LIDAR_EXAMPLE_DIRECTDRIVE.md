@@ -45,6 +45,10 @@ const 속도증가스텝 = 5
 const 속도감소스텝 = 10
 const 후진속도 = 60
 const 후진시간ms = 400
+const 직진보정사용 = true
+const 직진보정간격ms = 300
+const 직진보정게인 = 2
+const 직진보정최대 = 12
 // 정면블록확정()이 "이번 틱에 전진을 허용해도 다음 정면블록확정() 재확인 전까지
 // 안전한가"를 판단할 때 쓰는 고정 여유(mm). 거리 기반 PID와 달리 속도 제어는
 // "이번에 몇 mm 갈지"를 직접 알 수 없어서, 루프 주기(40ms)+캐시 지연을 감안한
@@ -501,6 +505,34 @@ function 정면긴급위험(): boolean {
 let 진행추적시작시각 = 0
 let 진행추적시작거리 = -1
 let 마지막전진성공확인시각 = 0
+let 마지막직진보정시각 = 0
+
+function 제한값(값: number, 최소값: number, 최대값: number): number {
+    return Math.max(최소값, Math.min(최대값, 값))
+}
+
+function 직진모터명령(속도: number): void {
+    if (!직진보정사용) {
+        maqueenPlusV2.controlMotor(maqueenPlusV2.MyEnumMotor.AllMotor, maqueenPlusV2.MyEnumDir.Forward, 속도)
+        return
+    }
+    let 왼쪽실속 = maqueenPlusV2.readRealTimeSpeed(maqueenPlusV2.DirectionType2.Left)
+    let 오른쪽실속 = maqueenPlusV2.readRealTimeSpeed(maqueenPlusV2.DirectionType2.Right)
+    let 보정 = 0
+    if (왼쪽실속 > 0 || 오른쪽실속 > 0) {
+        보정 = 제한값((왼쪽실속 - 오른쪽실속) * 직진보정게인, -직진보정최대, 직진보정최대)
+    }
+    let 왼쪽명령 = Math.round(제한값(속도 - 보정, 0, 255))
+    let 오른쪽명령 = Math.round(제한값(속도 + 보정, 0, 255))
+    maqueenPlusV2.controlMotor(maqueenPlusV2.MyEnumMotor.LeftMotor, maqueenPlusV2.MyEnumDir.Forward, 왼쪽명령)
+    maqueenPlusV2.controlMotor(maqueenPlusV2.MyEnumMotor.RightMotor, maqueenPlusV2.MyEnumDir.Forward, 오른쪽명령)
+}
+
+function 직진보정틱(속도: number): void {
+    if (input.runningTime() - 마지막직진보정시각 < 직진보정간격ms) return
+    마지막직진보정시각 = input.runningTime()
+    직진모터명령(속도)
+}
 
 // col2~5(정면안전이 보는 폭) 중 가장 가까운 값을 본다 — col3 하나만 보면 실측
 // 로그에서 col3가 유독 자주 흔들리는 열이라 진행 측정 자체가 노이즈에 약했다.
@@ -618,6 +650,7 @@ let 회전탐색반복횟수 = 0
 const 회전1회각도 = 170
 const 회전1회예상ms = 4000
 const 회전탐색최대반복 = 3
+const 회전탐색확정추가각도 = 25
 
 let 정밀도레벨 = 0
 let 빠른모드틱카운터 = 0
@@ -676,6 +709,26 @@ function 회전탐색시작(): void {
     회전탐색시작시각 = input.runningTime()
 }
 
+function 회전탐색방향확정(): boolean {
+    maqueenPlusV2.pidControlStop()
+    basic.pause(120)
+    maqueenPlusV2.pidControlAngle(회전탐색방향 * 회전탐색확정추가각도, maqueenPlusV2.MyInterruption.NotAllowed)
+    basic.pause(200)
+    if (!회전탐색정면안전()) {
+        로그("ROTATE CANDIDATE LOST, continue")
+        maqueenPlusV2.pidControlAngle(회전탐색방향 * 회전1회각도, maqueenPlusV2.MyInterruption.Allowed)
+        회전탐색시작시각 = input.runningTime()
+        return false
+    }
+    기준값측정()
+    진행추적초기화()
+    회전탐색중 = false
+    실패연속 = 0
+    마지막판단 = "FOUND CONFIRMED"
+    로그("ROTATE FOUND CONFIRMED +" + 회전탐색확정추가각도)
+    return true
+}
+
 // 매 틱 호출한다. 충분한 공간을 찾으면 그 자리에서 즉시 멈추고(pidControlStop)
 // 회전탐색중을 false로 만든다 — 다음 틱에 메인 루프가 평상시 전진으로 넘어간다.
 // 한 번의 170도 회전이 끝났을 시간(회전1회예상ms)이 지났는데도 못 찾았으면 같은
@@ -684,14 +737,7 @@ function 회전탐색시작(): void {
 // 다음 정면블록확정() 체크에서 자연스럽게 처리한다).
 function 회전탐색틱(): void {
     if (회전탐색정면안전()) {
-        maqueenPlusV2.pidControlStop()
-        basic.pause(200)
-        기준값측정()
-        진행추적초기화()
-        회전탐색중 = false
-        실패연속 = 0
-        마지막판단 = "FOUND DURING ROTATE"
-        로그("ROTATE SEARCH FOUND, stopping + baseline refresh")
+        if (회전탐색방향확정()) return
         return
     }
     if (input.runningTime() - 회전탐색시작시각 >= 회전1회예상ms) {
@@ -794,7 +840,7 @@ function 직진테스트시작(): void {
     기준값측정()
     직진테스트시작시각 = input.runningTime()
     마지막직진테스트로그시각 = 직진테스트시작시각 - 직진테스트로그간격ms
-    maqueenPlusV2.controlMotor(maqueenPlusV2.MyEnumMotor.AllMotor, maqueenPlusV2.MyEnumDir.Forward, 직진테스트속도)
+    직진모터명령(직진테스트속도)
     직진테스트모터중 = true
     basic.showIcon(IconNames.SmallDiamond)
 }
@@ -817,9 +863,10 @@ function 직진테스트틱(): void {
     상태 = "TESTFWD"
     마지막판단 = "TF " + 경과
     if (!직진테스트모터중) {
-        maqueenPlusV2.controlMotor(maqueenPlusV2.MyEnumMotor.AllMotor, maqueenPlusV2.MyEnumDir.Forward, 직진테스트속도)
+        직진모터명령(직진테스트속도)
         직진테스트모터중 = true
     }
+    직진보정틱(직진테스트속도)
     if (지금 - 마지막직진테스트로그시각 >= 직진테스트로그간격ms) {
         마지막직진테스트로그시각 = 지금
         직진테스트로그()
@@ -1064,8 +1111,10 @@ basic.forever(function () {
             상태 = "DRIVE"
             마지막판단 = "FWD speed" + 전진속도
             if (!주행중) {
-                maqueenPlusV2.controlMotor(maqueenPlusV2.MyEnumMotor.AllMotor, maqueenPlusV2.MyEnumDir.Forward, 전진속도)
+                직진모터명령(전진속도)
                 주행중 = true
+            } else {
+                직진보정틱(전진속도)
             }
             if (헛돌이감지사용 && 헛돌이감지()) {
                 마지막판단 = "STUCK/SLIP"
@@ -1161,6 +1210,8 @@ basic.showIcon(IconNames.Target)
 | `최소전진속도` / `최대전진속도` | 30 / 80 | 정밀도 레벨에 따라 가변하는 속도 범위 |
 | `속도증가스텝` / `속도감소스텝` | 5 / 10 | 연속 성공/실패 시 속도를 늘리거나 줄이는 양 |
 | `후진속도` / `후진시간ms` | 60 / 400 | 긴급 후진 시 속도와 지속 시간(엔코더 거리 제어가 아니라 시간으로 끊음) |
+| `직진보정사용` / `직진보정간격ms` | true / 300 | 좌우 실시간 바퀴 속도를 읽어 빠른 쪽을 낮추고 느린 쪽을 올리는 직진 보정 |
+| `직진보정게인` / `직진보정최대` | 2 / 12 | 좌우 속도 차이를 모터 명령에 반영하는 강도와 최대 보정량 |
 | `전진여유mm` | 120 | 직진 허용 판단 시 더하는 고정 안전 버퍼(루프 주기/캐시 지연 감안, 속도 올리면 같이 키워야 함) |
 | `직진테스트속도` / `직진테스트시간ms` | 35 / 8000 | A 버튼 raw 수집 테스트의 직진 속도와 최대 시간 |
 | `직진테스트로그간격ms` | 100 | A 버튼 raw 수집 테스트에서 `TF` 로그를 남기는 간격 |
@@ -1176,6 +1227,7 @@ basic.showIcon(IconNames.Target)
 | `헛돌이감지사용` | false | 라이다 거리 변화량만으로 실제 주행 여부를 판단하는 기능. 빈 공간에서 오판이 많아 기본 꺼짐 |
 | `전진성공간격ms` | 800 | 이 시간 이상 안전 주행이 이어져야 성공 카운트를 1회 올림 |
 | `회전1회각도` / `회전1회예상ms` | 170 / 4000 | 회전 탐색 1회 호출 각도와 예상 소요시간(추정값, 튜닝 가능) |
+| `회전탐색확정추가각도` | 25 | 열린 방향을 처음 발견한 뒤 출구 중앙 쪽으로 더 돌려 재확인하는 각도 |
 | `회전탐색최대반복` | 3 | 같은 방향으로 최대 이 횟수(약 510도)까지 돌아도 못 찾으면 포기 |
 | `정밀도레벨개수` / `정밀도증가조건` | 3 / 3 | 정밀도 레벨 단계 수 / 연속 성공 시 레벨 올리는 기준 |
 | `빠른모드맨아래행주기틱` | 5 | 최고 정밀도 레벨에서도 5번에 1번은 맨 아래 행까지 확인 |
