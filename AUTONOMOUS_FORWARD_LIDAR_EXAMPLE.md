@@ -309,6 +309,65 @@ function 회피시도(): boolean {
     return true
 }
 
+function 탐색점수계산(): number {
+    let 거리목록 = 전체열스캔()
+    let 점수 = 0
+    for (let col = 0; col < 8; col++) {
+        let 거리 = 거리목록[col] == 0 ? 탐색점수상한mm : Math.min(거리목록[col], 탐색점수상한mm)
+        점수 += 거리 * 열가중치[col]
+    }
+    return 점수
+}
+
+function 열각도순회탐색(각도목록: number[]): number {
+    let 최고점수 = -999999
+    let 최고각 = 각도목록[0]
+    maqueenPlusV2.pidControlAngle(각도목록[0], maqueenPlusV2.MyInterruption.NotAllowed)
+    for (let i = 0; i < 각도목록.length; i++) {
+        let 후보각 = 각도목록[i]
+        let 점수 = 탐색점수계산()
+        if (점수 > 최고점수) {
+            최고점수 = 점수
+            최고각 = 후보각
+        }
+        로그("ESCAPE DIR " + 후보각 + " SCORE " + 점수)
+        if (i < 각도목록.length - 1) {
+            maqueenPlusV2.pidControlAngle(각도목록[i + 1] - 각도목록[i], maqueenPlusV2.MyInterruption.NotAllowed)
+        }
+    }
+    let 복귀각 = 최고각 - 각도목록[각도목록.length - 1]
+    마지막탐색점수 = 최고점수
+    maqueenPlusV2.pidControlAngle(복귀각, maqueenPlusV2.MyInterruption.NotAllowed)
+    basic.pause(300)
+    return 최고각
+}
+
+function 탈출360(): boolean {
+    상태 = "ESCAPE"
+    maqueenPlusV2.pidControlStop()
+
+    let 최고각 = 열각도순회탐색(탈출각도)
+    if (마지막탐색점수 >= 탈출최소점수) return true
+    maqueenPlusV2.pidControlAngle(-최고각, maqueenPlusV2.MyInterruption.NotAllowed)
+
+    상태 = "ESCAPE-FINE"
+    최고각 = 열각도순회탐색(탈출각도세밀)
+    if (마지막탐색점수 >= 탈출최소점수) return true
+    maqueenPlusV2.pidControlAngle(-최고각, maqueenPlusV2.MyInterruption.NotAllowed)
+
+    상태 = "ESCAPE-BACK-R"
+    최고각 = 열각도순회탐색(탈출각도세밀후방우)
+    if (마지막탐색점수 >= 탈출최소점수) return true
+    maqueenPlusV2.pidControlAngle(-최고각, maqueenPlusV2.MyInterruption.NotAllowed)
+
+    상태 = "ESCAPE-BACK-L"
+    최고각 = 열각도순회탐색(탈출각도세밀후방좌)
+    if (마지막탐색점수 >= 탈출최소점수) return true
+
+    로그("ALL 360 ESCAPE STAGES FAILED -> NO ESCAPE")
+    return false
+}
+
 input.onButtonPressed(Button.B, function () {
     if (!주행시작됨) 출발요청 = true
 })
@@ -335,7 +394,21 @@ basic.forever(function () {
     } else {
         maqueenPlusV2.pidControlStop()
         상태 = "AVOID"
-        회피시도()
+        let 회피성공 = 회피시도()
+        if (!회피성공 && 실패연속 >= 실패연속한계) {
+            let 탈출성공 = 탈출360()
+            if (!탈출성공) {
+                상태 = "NO ESCAPE"
+                마지막판단 = "NO ESCAPE"
+                lcd표시(true)
+                basic.showIcon(IconNames.No)
+                주행시작됨 = false
+                실패연속 = 0
+                basic.pause(루프대기ms)
+                return
+            }
+            실패연속 = 0
+        }
     }
 
     lcd표시(false)
