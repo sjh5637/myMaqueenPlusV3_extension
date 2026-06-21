@@ -345,8 +345,17 @@ function 최선열찾기(거리목록: number[]): number {
     return 중심열
 }
 
+function 열목록문자열(거리목록: number[]): string {
+    let 결과 = ""
+    for (let i = 0; i < 거리목록.length; i++) {
+        결과 += (i > 0 ? "," : "") + 거리목록[i]
+    }
+    return 결과
+}
+
 function 회피시도(): boolean {
     let 거리목록 = 전체열스캔()
+    로그("SCAN " + 열목록문자열(거리목록))
     let 목표열 = 최선열찾기(거리목록)
     if (목표열 < 0) {
         실패연속 += 1
