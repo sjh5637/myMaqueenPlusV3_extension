@@ -353,9 +353,26 @@ function 열목록문자열(거리목록: number[]): string {
     return 결과
 }
 
+// 필터링(4000 센티널 -> 0, raw==0 글리치 -> -1) 이전의 원본 64개 값을 그대로
+// 로그로 보낸다 — "너무 멀어서 4000대"와 "너무 가까워서 4000대"가 실제로 같은
+// 값으로 나오는지 등을 raw 단계에서 직접 확인하기 위한 진단용. row 0줄씩
+// "|"로 구분, 한 줄 안에서는 col0~7을 ","로 구분.
+function 전체64로그(): void {
+    let 결과 = ""
+    for (let row = 0; row < 8; row++) {
+        if (row > 0) 결과 += "|"
+        for (let col = 0; col < 8; col++) {
+            if (col > 0) 결과 += ","
+            결과 += matrixLidarDistance.matrixPointOutput(라이다주소, col, row)
+        }
+    }
+    로그("RAW(row0-7|col0-7) " + 결과)
+}
+
 function 회피시도(): boolean {
+    전체64로그()
     let 거리목록 = 전체열스캔()
-    로그("SCAN " + 열목록문자열(거리목록))
+    로그("SCAN(filtered col0-7) " + 열목록문자열(거리목록))
     let 목표열 = 최선열찾기(거리목록)
     if (목표열 < 0) {
         실패연속 += 1
