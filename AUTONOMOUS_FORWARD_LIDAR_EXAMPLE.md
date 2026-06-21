@@ -45,7 +45,7 @@ const 비상후진cm = 5
 
 const 루프대기ms = 40
 const LCD갱신간격ms = 500
-const 디버그모드 = true
+let 디버그레벨 = 1   // 0=끄기, 1=하트비트/상태전환, 2=델타/타이밍 등 상세까지
 const 라디오그룹 = 77
 const LCD맵칸쓰기지연ms = 5
 const 로그송신지연ms = 20
@@ -77,7 +77,7 @@ let 주행시작됨 = false
 const 하트비트간격ms = 1000
 
 function 로그(내용: string): void {
-    if (!디버그모드) return
+    if (디버그레벨 < 1) return
     let 전체 = input.runningTime() + "ms " + 내용
     let 위치 = 0
     while (true) {
@@ -92,6 +92,13 @@ function 로그(내용: string): void {
             위치 += 19
         }
     }
+}
+
+// 디버그레벨 2에서만 보내는 상세 로그(델타 스냅샷, 스캔 사이클 타이밍 등) —
+// 무선 송신 자체가 시간을 쓰므로 평소엔(레벨 1) 끄고 최적화/진단할 때만 켠다.
+function 상세로그(내용: string): void {
+    if (디버그레벨 < 2) return
+    로그(내용)
 }
 
 function lcd명령쓰기(데이터: number[]): void {
@@ -213,7 +220,7 @@ function lcd대기표시(강제: boolean): void {
 }
 
 function 로봇초기화(): void {
-    if (디버그모드) {
+    if (디버그레벨 >= 1) {
         radio.setGroup(라디오그룹)
         radio.setTransmitPower(7)
     }
@@ -246,6 +253,16 @@ for (let i = 0; i < 64; i++) {
     캐시갱신시각.push(0)
 }
 let 마지막사이클ms = 0
+
+function 캐시최대나이ms(): number {
+    let 지금 = input.runningTime()
+    let 최대 = 0
+    for (let i = 0; i < 64; i++) {
+        let 나이 = 지금 - 캐시갱신시각[i]
+        if (나이 > 최대) 최대 = 나이
+    }
+    return 최대
+}
 
 let 직전판정: number[] = []
 let 델타: number[] = []
@@ -660,14 +677,17 @@ control.inBackground(function () {
             }
         }
         마지막사이클ms = input.runningTime() - 시작
+        상세로그("SCAN CYCLE " + 마지막사이클ms + "ms")
     }
 })
 
 basic.forever(function () {
-    if (디버그모드 && input.runningTime() - 마지막하트비트시각 >= 하트비트간격ms) {
+    if (디버그레벨 >= 1 && input.runningTime() - 마지막하트비트시각 >= 하트비트간격ms) {
         마지막하트비트시각 = input.runningTime()
         로그("HB state=" + 상태 + " dec=" + 마지막판단 + " step=" + 적응전진거리cm
-            + " failStreak=" + 실패연속 + " blockStreak=" + 정면막힘연속 + " started=" + 주행시작됨)
+            + " failStreak=" + 실패연속 + " blockStreak=" + 정면막힘연속
+            + " precision=" + 정밀도레벨 + " cacheAge=" + 캐시최대나이ms()
+            + " cycleMs=" + 마지막사이클ms + " started=" + 주행시작됨)
     }
 
     if (!주행시작됨) {
@@ -766,7 +786,7 @@ basic.forever(function () {
 
 ## 무선(라디오) 디버그 콘솔
 
-위 코드에 `디버그모드 = true`일 때 `로그()` 호출이 채널 `77`에 무선 전송되도록
+위 코드에 `디버그레벨 >= 1`일 때 `로그()` 호출이 채널 `77`에 무선 전송되도록
 이미 넣어두었습니다(`로봇초기화()`에서 `radio.setGroup(77)` 설정). 긴 로그가
 잘리지 않도록 19자 단위로 쪼개 보내고 마지막 조각 끝에 `$`를 붙입니다. 주행
 중인 로봇은 송신만 하고 받지는 않으므로, **두 번째 마이크로비트**를 USB로
@@ -774,7 +794,7 @@ PC에 연결해 같은 채널로 라디오를 받아서 `$`가 나올 때까지 
 시리얼로 출력하는 역할을 맡깁니다. 즉 코드가 2개입니다.
 
 1. **로봇(보내는 쪽)**: 위 자율주행 코드 그대로 사용. 문제 없는 게 확인되면
-   `디버그모드 = false`로 끄세요(라디오 송신도 약간의 틱 시간을 먹습니다).
+   `디버그레벨 = 0`으로 끄세요(라디오 송신도 약간의 틱 시간을 먹습니다).
 2. **수신용 마이크로비트(받는 쪽, 새 프로젝트)**: 아래 코드를 새 MakeCode
    프로젝트에 붙여넣고, 로봇과는 별개로 USB로 PC에 연결한 채 그대로 둡니다.
    MakeCode 에디터의 "콘솔" 탭에서 메시지를 그대로 볼 수 있습니다.
@@ -820,12 +840,16 @@ basic.showIcon(IconNames.Target)
 
 라이다를 수평·정면으로 장착한 상태에서 다음을 확인한다:
 
-1. 정면이 트인 공간에서 `B` 시작 후 평상시 직진이 계속 이어지는지.
-2. 한쪽이 좁게 막힌 상황(예: 왼쪽에 박스)에서 반대쪽(오른쪽)의 열린 열 그룹으로
-   회전·회피하는지, LCD `STEP`/`FAIL` 값과 5x5 LED 근접도 표시가 실제 장애물
-   위치와 맞는지.
-3. 좁은 복도/모서리에서 5회 연속 회피 실패 후 LCD 상태가 `ESCAPE`로 바뀌고
-   360도 탐색이 시작되는지.
-4. 로봇 사방을 완전히 막은 상태에서 4단계(`ESCAPE`→`ESCAPE-FINE`→`ESCAPE-BACK-R`→
-   `ESCAPE-BACK-L`) 모두 실패해 LCD에 `NO ESCAPE`가 표시되고 X 아이콘이 뜨며
-   정지하는지.
+1. 트인 공간에서 `B` 시작 후 평소 주행이 이어지면서, 시간이 지날수록 `HB` 로그의
+   `precision` 값이 0→1→2로 점진적으로 올라가는지.
+2. 옆에서 갑자기 물체를 가까이 들이댔을 때(회전 탐색 중이든 직진 중이든) 즉시
+   후진하는지(`EMERGENCY BACKOFF` 로그 확인).
+3. 유리판처럼 라이다로 잘 안 보이는 장애물 앞에서 일정 시간 진행이 없으면
+   `STUCK/SLIP DETECTED` 로그가 뜨고 다른 방향을 시도하는지.
+4. 한쪽이 좁게 막힌 상황에서 회전 탐색이 충분한 공간을 찾는 순간 회전 중간에라도
+   바로 멈추고(`ROTATE SEARCH FOUND` 로그) 전진으로 전환하는지.
+5. 좁은 복도/모서리에서 회전 탐색이 반복 실패해(`실패연속한계`회) 최종 360도
+   탐색(`ESCAPE TRIGGER`)으로 넘어가는지.
+6. 로봇 사방을 완전히 막은 상태에서 최종 360도 탐색도 실패해 `NO ESCAPE`가 뜨는지.
+7. `디버그레벨 = 2`로 바꿔서 다시 실행했을 때 `SCAN CYCLE` 사이클 타이밍 로그가
+   추가로 찍히는지, 그 값을 보고 캐시 신선도(`cacheAge`)가 합리적인 범위인지.
