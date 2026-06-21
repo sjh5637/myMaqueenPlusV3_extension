@@ -1,0 +1,288 @@
+# 정면 고정 장착 매트릭스 라이다 8열 회피/탈출 예제
+
+이 예제는 8x8 Matrix LiDAR를 **바닥 쪽으로 기울이지 않고 수평·정면으로 고정
+장착**한 상태를 가정합니다. 라이다가 바닥을 보지 않으므로 `AUTONOMOUS_WANDER_EXAMPLE.md`가
+필요로 하던 바닥/높이/각도 보정 절차가 전혀 필요 없습니다. 장착 오차는 안전거리
+여유값으로만 흡수합니다.
+
+라이다는 `matrixLidarDistance.matrixPointOutput()`으로 8x8 점을 직접 읽어
+**열(column) 단위 최솟거리**로 압축해서 사용합니다. 평상시에는 중앙 2열만 보는
+저비용 체크로 정지 여부를 판단하고, 막혔을 때만 8열 전체를 스캔해 가장 넓게
+열린 방향으로 회전 후 전진합니다. 같은 자리에서 5회 연속 회피에 실패하면
+360도를 45°→15°→우후방15°→좌후방15° 순으로 점점 세밀하게 다시 훑는 탈출
+모드로 전환합니다.
+
+LCD 주소 `0x2c`와 Matrix LiDAR 주소 `Addr4(0x33)` 구성을 기준으로 작성했습니다.
+
+동작 순서:
+
+1. 부팅 후 LCD에 `FORWARD LIDAR READY`, `B = START`가 표시됩니다(보정 절차 없음).
+2. `B`를 누르면 3초 카운트다운 후 평상시 회피 주행이 시작됩니다.
+3. 정면 중앙이 트여 있으면 그대로 전진하고, 막히면 8열을 스캔해 가장 넓게 열린
+   방향으로 회전한 뒤 전진합니다.
+4. 회피가 5회 연속 실패하면 360도 굵게→세밀 탐색으로 빠져나갈 방향을 찾습니다.
+   4단계를 모두 거쳐도 못 찾으면 정지하고 X 아이콘을 표시합니다.
+
+```typescript
+const LCD주소 = 0x2c
+const 라이다주소 = matrixLidarDistance.Addr.Addr4
+const 라이다무효값mm = 4000
+
+const 정지거리mm = 250
+const 안전거리mm = 400
+const 최소그룹폭열수 = 2
+const 전진거리cm = 6
+const 최소전진거리cm = 4
+const 최대전진거리cm = 10
+const 전진성공증가조건 = 3
+const 전진성공증가cm = 1
+const 전진실패감소cm = 2
+const 실패연속한계 = 5
+const 탐색점수상한mm = 1000
+const 탈출최소점수 = 8000
+
+const 루프대기ms = 40
+const LCD갱신간격ms = 500
+const 디버그모드 = true
+const 라디오그룹 = 78
+const LCD맵칸쓰기지연ms = 5
+const 로그송신지연ms = 20
+
+let 열가중치 = [1, 1.5, 2, 3, 3, 2, 1.5, 1]
+let 탈출각도 = [-90, -45, 0, 45, 90]
+let 탈출각도세밀 = [-90, -75, -60, -45, -30, -15, 0, 15, 30, 45, 60, 75, 90]
+let 탈출각도세밀후방우 = [105, 120, 135, 150, 165, 180]
+let 탈출각도세밀후방좌 = [-105, -120, -135, -150, -165, -180]
+
+let 적응전진거리cm = 전진거리cm
+let 전진성공연속 = 0
+let 실패연속 = 0
+let 상태 = "BOOT"
+let 마지막판단 = "INIT"
+let 마지막탐색점수 = 0
+let 마지막LCD시각 = 0
+let 출발요청 = false
+let 주행시작됨 = false
+
+function 로그(내용: string): void {
+    if (!디버그모드) return
+    let 전체 = input.runningTime() + "ms " + 내용
+    let 위치 = 0
+    while (true) {
+        let 남음 = 전체.length - 위치
+        if (남음 <= 18) {
+            radio.sendString(전체.substr(위치, 남음) + "$")
+            basic.pause(로그송신지연ms)
+            break
+        } else {
+            radio.sendString(전체.substr(위치, 19))
+            basic.pause(로그송신지연ms)
+            위치 += 19
+        }
+    }
+}
+
+function lcd명령쓰기(데이터: number[]): void {
+    let 보낼위치 = 0
+    while (보낼위치 < 데이터.length) {
+        let 끝 = Math.min(보낼위치 + 32, 데이터.length)
+        let 조각 = 데이터.slice(보낼위치, 끝)
+        pins.i2cWriteBuffer(LCD주소, pins.createBufferFromArray(조각), 끝 < 데이터.length)
+        보낼위치 = 끝
+        basic.pause(LCD맵칸쓰기지연ms)
+    }
+}
+
+function lcd명령(명령: number, 데이터: number[]): void {
+    let 전체길이 = 데이터.length + 4
+    let 패킷 = [0x55, 0xaa, 전체길이 - 3, 명령]
+    for (let i = 0; i < 데이터.length; i++) 패킷.push(데이터[i])
+    lcd명령쓰기(패킷)
+}
+
+function utf8바이트(문자열: string): number[] {
+    let 결과: number[] = []
+    for (let i = 0; i < 문자열.length; i++) {
+        let c = 문자열.charCodeAt(i)
+        if (c <= 0x7f) {
+            결과.push(c)
+        } else if (c <= 0x7ff) {
+            결과.push(0xc0 | (c >> 6))
+            결과.push(0x80 | (c & 0x3f))
+        } else {
+            결과.push(0xe0 | (c >> 12))
+            결과.push(0x80 | ((c >> 6) & 0x3f))
+            결과.push(0x80 | (c & 0x3f))
+        }
+    }
+    return 결과
+}
+
+function lcd지우기(): void {
+    lcd명령(0x1d, [])
+    basic.pause(1500)
+}
+
+function lcd배경색(색: number): void {
+    lcd명령(0x19, [(색 >> 16) & 0xff, (색 >> 8) & 0xff, 색 & 0xff])
+    basic.pause(300)
+}
+
+function lcd문자(번호: number, x: number, y: number, 내용: string, 색: number): void {
+    let 데이터 = [
+        번호,
+        2,
+        (색 >> 16) & 0xff,
+        (색 >> 8) & 0xff,
+        색 & 0xff,
+        (x >> 8) & 0xff,
+        x & 0xff,
+        (y >> 8) & 0xff,
+        y & 0xff
+    ]
+    let 바이트 = utf8바이트(내용)
+    for (let i = 0; i < 바이트.length; i++) 데이터.push(바이트[i])
+    lcd명령(0x18, 데이터)
+}
+
+function lcd줄(번호: number, 내용: string, 색: number): void {
+    let y목록 = [16, 54, 92, 130, 168]
+    let 표시 = 내용
+    if (표시.length > 26) 표시 = 표시.substr(0, 26)
+    while (표시.length < 26) 표시 += " "
+    lcd문자(번호, 8, y목록[번호 - 1], 표시, 색)
+}
+
+function 거리밝기(거리: number): number {
+    if (거리 <= 0) return 0
+    if (거리 <= 정지거리mm) return 255
+    if (거리 >= 안전거리mm) return 20
+    return Math.round(255 - ((거리 - 정지거리mm) * 235) / (안전거리mm - 정지거리mm))
+}
+
+function 구간최소(거리목록: number[], 시작: number, 끝: number): number {
+    let 최소 = 0
+    for (let col = 시작; col <= 끝; col++) {
+        if (거리목록[col] > 0 && (최소 == 0 || 거리목록[col] < 최소)) 최소 = 거리목록[col]
+    }
+    return 최소
+}
+
+function LED레이더표시(거리목록: number[]): void {
+    let 칸시작 = [0, 2, 3, 4, 6]
+    let 칸끝 = [1, 3, 4, 5, 7]
+    for (let i = 0; i < 5; i++) {
+        let 밝기 = 거리밝기(구간최소(거리목록, 칸시작[i], 칸끝[i]))
+        led.plotBrightness(i, 2, 밝기)
+    }
+}
+
+function lcd표시(강제: boolean): void {
+    if (!강제 && input.runningTime() - 마지막LCD시각 < LCD갱신간격ms) return
+    마지막LCD시각 = input.runningTime()
+    let 거리목록 = 전체열스캔()
+    lcd줄(1, 상태, 0x000000)
+    lcd줄(2, "DEC " + 마지막판단, 0x0000ff)
+    lcd줄(3, "L" + 구간최소(거리목록, 0, 1) + " F" + 구간최소(거리목록, 3, 4) + " R" + 구간최소(거리목록, 6, 7), 0xaa00aa)
+    lcd줄(4, "STEP " + 적응전진거리cm + "cm FAIL " + 실패연속, 0x008000)
+    lcd줄(5, "SCORE " + 마지막탐색점수, 0x000000)
+    LED레이더표시(거리목록)
+}
+
+function lcd대기표시(강제: boolean): void {
+    if (!강제 && input.runningTime() - 마지막LCD시각 < LCD갱신간격ms) return
+    마지막LCD시각 = input.runningTime()
+    lcd줄(1, "FORWARD LIDAR READY", 0x000000)
+    lcd줄(2, "B = START", 0x0000ff)
+    lcd줄(3, "NO CALIBRATION NEEDED", 0x008000)
+    lcd줄(4, "", 0xffffff)
+    lcd줄(5, "", 0xffffff)
+}
+
+function 로봇초기화(): void {
+    if (디버그모드) {
+        radio.setGroup(라디오그룹)
+        radio.setTransmitPower(7)
+    }
+    maqueenPlusV2.I2CInit()
+    matrixLidarDistance.initialize(라이다주소, matrixLidarDistance.Matrix.MAT)
+    basic.pause(500)
+    로그("BOOT FORWARD LIDAR")
+    lcd지우기()
+    lcd배경색(0xffffff)
+    lcd줄(1, "FORWARD LIDAR READY", 0x000000)
+    lcd줄(2, "B = START", 0x0000ff)
+    lcd줄(3, "NO CALIBRATION NEEDED", 0x008000)
+}
+
+function 출발카운트다운(): void {
+    상태 = "START"
+    for (let n = 3; n > 0; n--) {
+        마지막판단 = "START " + n
+        lcd줄(1, "START " + n, 0x000000)
+        lcd줄(2, "FRONT LIDAR SCAN", 0x0000ff)
+        basic.showNumber(n)
+        basic.pause(1000)
+    }
+    basic.clearScreen()
+}
+
+function 열최소읍기(col: number): number {
+    let 최소 = 0
+    for (let row = 0; row < 8; row++) {
+        let raw = matrixLidarDistance.matrixPointOutput(라이다주소, col, row)
+        let mm = raw >= 라이다무효값mm ? 0 : raw
+        if (mm > 0 && (최소 == 0 || mm < 최소)) {
+            최소 = mm
+        }
+    }
+    return 최소
+}
+
+function 전체열스캔(): number[] {
+    let 결과: number[] = []
+    for (let col = 0; col < 8; col++) {
+        결과.push(열최소읍기(col))
+    }
+    return 결과
+}
+
+function 정면안전(): boolean {
+    let c3 = 열최소읍기(3)
+    let c4 = 열최소읍기(4)
+    return (c3 == 0 || c3 >= 정지거리mm) && (c4 == 0 || c4 >= 정지거리mm)
+}
+
+input.onButtonPressed(Button.B, function () {
+    if (!주행시작됨) 출발요청 = true
+})
+
+로봇초기화()
+
+basic.forever(function () {
+    if (!주행시작됨) {
+        if (출발요청) {
+            출발요청 = false
+            출발카운트다운()
+            주행시작됨 = true
+        } else {
+            lcd대기표시(false)
+        }
+        basic.pause(루프대기ms)
+        return
+    }
+
+    if (정면안전()) {
+        상태 = "DRIVE"
+        마지막판단 = "FWD " + 적응전진거리cm + "cm"
+        maqueenPlusV2.pidControlDistance(maqueenPlusV2.SpeedDirection.SpeedCW, 적응전진거리cm, maqueenPlusV2.MyInterruption.NotAllowed)
+    } else {
+        maqueenPlusV2.pidControlStop()
+        상태 = "STOP"
+        마지막판단 = "FRONT BLOCKED"
+    }
+
+    lcd표시(false)
+    basic.pause(루프대기ms)
+})
+```
