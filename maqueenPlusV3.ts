@@ -295,6 +295,59 @@ namespace maqueenPlusV2 {
         }
     }
 
+    let autoBalanceActive = false;
+
+    /**
+     * 좌/우 바퀴의 실시간 속도(cm/s)를 계속 읽어서 두 모터의 속도를 자동으로 보정하며 직진/후진합니다.
+     * 바퀴 마찰이나 배터리 차이로 한쪽으로 휘는 문제를 줄여줍니다.
+     * Drive straight by continuously reading left/right wheel speed and auto-correcting motor PWM so both wheels match.
+     * @param edir Direction (Forward/Backward)
+     * @param speed base motor speed (0-255), eg:100
+     */
+    //% blockId=startAutoBalanceDrive
+    //% block="auto-balance drive %edir base speed %speed"
+    //% speed.min=0 speed.max=255
+    //% weight=97
+    //% group="Motor"
+    export function startAutoBalanceDrive(edir: MyEnumDir, speed: number): void {
+        autoBalanceActive = true;
+        let leftSpeed = speed;
+        let rightSpeed = speed;
+        controlMotor(MyEnumMotor.LeftMotor, edir, leftSpeed);
+        controlMotor(MyEnumMotor.RightMotor, edir, rightSpeed);
+        control.inBackground(function () {
+            const GAIN = 3;
+            while (autoBalanceActive) {
+                let speeds = readBothWheelSpeeds();
+                let diff = speeds[0] - speeds[1];
+                leftSpeed = clampMotorSpeed(leftSpeed - diff * GAIN);
+                rightSpeed = clampMotorSpeed(rightSpeed + diff * GAIN);
+                controlMotor(MyEnumMotor.LeftMotor, edir, Math.round(leftSpeed));
+                controlMotor(MyEnumMotor.RightMotor, edir, Math.round(rightSpeed));
+                basic.pause(50);
+            }
+        });
+    }
+
+    function clampMotorSpeed(v: number): number {
+        if (v < 0) return 0;
+        if (v > 255) return 255;
+        return v;
+    }
+
+    /**
+     * 자동 속도 보정 주행을 멈추고 모터를 정지합니다.
+     * Stop the auto-balance drive and stop the motors.
+     */
+    //% blockId=stopAutoBalanceDrive
+    //% block="stop auto-balance drive"
+    //% weight=96
+    //% group="Motor"
+    export function stopAutoBalanceDrive(): void {
+        autoBalanceActive = false;
+        controlMotorStop(MyEnumMotor.AllMotor);
+    }
+
     /**
      * Control left and right LED light switch module
      * @param eled LED lamp selection
@@ -330,6 +383,16 @@ namespace maqueenPlusV2 {
     }
 
     /**
+     * 5개 라인 센서의 상태가 모두 들어있는 원시 비트마스크를 I2C로 한 번만 읽어옵니다.
+     * (L2=0x10, L1=0x08, M=0x04, R1=0x02, R2=0x01)
+     * Read the raw bitmask containing all 5 line sensor states in a single I2C transaction.
+     */
+    function readLineSensorBits(): number {
+        pins.i2cWriteNumber(I2CADDR, LINE_STATE_REGISTER, NumberFormat.Int8LE);
+        return pins.i2cReadNumber(I2CADDR, NumberFormat.Int8LE);
+    }
+
+    /**
      * Get the state of the patrol sensor
      * @param eline Select the inspection sensor enumeration
      */
@@ -339,8 +402,7 @@ namespace maqueenPlusV2 {
     //% weight=96
     //% group="Sensors"
     export function readLineSensorState(eline:MyEnumLineSensor):number{
-        pins.i2cWriteNumber(I2CADDR, LINE_STATE_REGISTER, NumberFormat.Int8LE);
-        let data = pins.i2cReadNumber(I2CADDR, NumberFormat.Int8LE)
+        let data = readLineSensorBits();
         let state;
         switch(eline){
             case MyEnumLineSensor.SensorL1: 
@@ -1118,13 +1180,18 @@ namespace maqueenPlusV2 {
     //% group="V3"
     //% advanced=true
     export function readRealTimeSpeed(type: DirectionType2): number {
-        let allBuffer = pins.createBuffer(2);
+        let speeds = readBothWheelSpeeds();
+        return type == DirectionType2.Left ? speeds[0] : speeds[1];
+    }
+
+    /**
+     * 좌/우 바퀴의 실시간 속도(cm/s)를 단 한 번의 I2C 통신으로 함께 읽어옵니다.
+     * Read both left and right wheel real-time speed (cm/s) in a single I2C transaction.
+     */
+    function readBothWheelSpeeds(): number[] {
         pins.i2cWriteNumber(I2CADDR, 76, 1);
-        allBuffer = pins.i2cReadBuffer(I2CADDR, 2);
-        if (type == DirectionType2.Left)
-            return allBuffer[0] / 5;
-        else
-            return allBuffer[1] / 5;
+        let allBuffer = pins.i2cReadBuffer(I2CADDR, 2);
+        return [allBuffer[0] / 5, allBuffer[1] / 5];
     }
 
     /**
@@ -1550,11 +1617,12 @@ namespace maqueenPlusV2 {
             let wasOnLine = false;
             let deviationLatched = false;
             while (safetyMonitorActive) {
-                let l2 = readLineSensorState(MyEnumLineSensor.SensorL2);
-                let l1 = readLineSensorState(MyEnumLineSensor.SensorL1);
-                let m = readLineSensorState(MyEnumLineSensor.SensorM);
-                let r1 = readLineSensorState(MyEnumLineSensor.SensorR1);
-                let r2 = readLineSensorState(MyEnumLineSensor.SensorR2);
+                let bits = readLineSensorBits();
+                let l2 = (bits & 0x10) ? 1 : 0;
+                let l1 = (bits & 0x08) ? 1 : 0;
+                let m = (bits & 0x04) ? 1 : 0;
+                let r1 = (bits & 0x02) ? 1 : 0;
+                let r2 = (bits & 0x01) ? 1 : 0;
 
                 let isOnLine = (l1 === 1 || m === 1 || r1 === 1);
                 // 5센서 모두 흑색 = 결승선 테이프 통과 중 → 이탈로 오판하지 않음
@@ -1727,18 +1795,18 @@ namespace maqueenPlusV2 {
             let seenNonBlack = false;
             let lastSampleTime = raceStartTime;
             while (raceFinishMonitorActive) {
-                let l1 = readLineSensorState(MyEnumLineSensor.SensorL1);
-                let m = readLineSensorState(MyEnumLineSensor.SensorM);
-                let r1 = readLineSensorState(MyEnumLineSensor.SensorR1);
+                let bits = readLineSensorBits();
+                let l1 = (bits & 0x08) ? 1 : 0;
+                let m = (bits & 0x04) ? 1 : 0;
+                let r1 = (bits & 0x02) ? 1 : 0;
                 // 결승선 판정: L1, M, R1 3개 센서가 모두 흑색
                 let allBlack = (l1 === 1 && m === 1 && r1 === 1);
                 if (!allBlack) seenNonBlack = true;
 
                 // 좌/우 바퀴 속도(cm/s)를 경과 시간만큼 적분해 이동 거리(cm)를 역산
                 let now = input.runningTime();
-                let leftSpeed = readRealTimeSpeed(DirectionType2.Left);
-                let rightSpeed = readRealTimeSpeed(DirectionType2.Right);
-                raceDistanceCm += (leftSpeed + rightSpeed) / 2 * (now - lastSampleTime) / 1000;
+                let speeds = readBothWheelSpeeds();
+                raceDistanceCm += (speeds[0] + speeds[1]) / 2 * (now - lastSampleTime) / 1000;
                 lastSampleTime = now;
 
                 if (allBlack && seenNonBlack) {
