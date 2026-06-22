@@ -56,7 +56,7 @@ maqueenPlusV2.onLineDeviated(function () {
 
 // Start/stop monitor manually to check function calls
 maqueenPlusV2.startLineSafetyMonitor()
-maqueenPlusV2.startLineSafetyMonitor(DigitalPin.P15, maqueenPlusV2.NeoPixelColors.Blue, false, true, true)
+maqueenPlusV2.startLineSafetyMonitor(maqueenPlusV2.MyLineSafetyLevel.Level2, DigitalPin.P15, maqueenPlusV2.NeoPixelColors.Blue, false, true, true)
 basic.pause(1000)
 maqueenPlusV2.stopLineSafetyMonitor()
 maqueenPlusV2.stopLineSafetyMonitor(DigitalPin.P15)

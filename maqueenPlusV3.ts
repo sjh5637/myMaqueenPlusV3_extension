@@ -16,7 +16,7 @@ const enum PatrolSpeed {
  * Custom graphic block
  */
 //% weight=100 color=#0fbc11 icon="\uf067" block="MaqueenPlusV3"
-//% groups="['Setup', 'Motor', 'LED', 'Sensors', 'NeoPixel', 'V3', 'Effects', 'New Features', 'Class01Setup', 'Class02Drive', 'Class03LineSafety', 'Class04RaceTimer', 'Class05Radio', 'Class06Emotion']"
+//% groups="['Setup', 'Motor', 'LED', 'Sensors', 'NeoPixel', 'V3', 'Effects', 'Class01Setup', 'Class03LineSafety', 'Class04RaceTimer', 'NewSetup', 'NewDrive', 'NewRaceTimer', 'NewRadio', 'NewEmotion']"
 //% subcategories="['New Features', 'Class']"
 namespace maqueenPlusV2 {
 
@@ -1397,8 +1397,8 @@ namespace maqueenPlusV2 {
     //% weight=5
     //% blockId=expressEmotion
     //% block="express emotion %emotion"
-    //% subcategory="Class"
-    //% group="Class06Emotion"
+    //% subcategory="New Features"
+    //% group="NewEmotion"
     export function expressEmotion(emotion: MyEmotion): void {
         stopAnimations(DigitalPin.P15);
 
@@ -1595,15 +1595,33 @@ namespace maqueenPlusV2 {
     }
 
     /**
+     * 수업용 라인 감시 난이도. 단계가 올라갈수록 라인을 더 정확하게 따라가야 합니다.
+     * - 1단계: 가장 바깥쪽 센서(L2, R2)가 검은선을 밟으면 즉시 이탈
+     * - 2단계: L1·M·R1 중 하나라도 검은선을 밟은 뒤, 5개 센서가 전부 흰색이 되어
+     *   라인을 완전히 놓치면 이탈 (L1, R1만 잠깐 밟는 건 이탈 아님)
+     * - 3단계: 가운데 센서(M)가 검은선을 벗어나면 즉시 이탈
+     */
+    export enum MyLineSafetyLevel {
+        //% block="1단계 (쉬움)"
+        Level1 = 1,
+        //% block="2단계"
+        Level2 = 2,
+        //% block="3단계 (어려움)"
+        Level3 = 3,
+    }
+
+    /**
      * Start monitoring if the robot deviates from the black line (V2 & V3 compatible).
      * When it deviates, the "on line deviated" event is raised.
+     * @param level line safety difficulty level
      */
     //% weight=12
     //% blockId=lineMonitorStart
-    //% block="start line monitor"
+    //% block="start line monitor level %level || pin %pin color %color stopMotors %stopMotors lightAlert %lightAlert soundAlert %soundAlert"
     //% subcategory="Class"
     //% group="Class03LineSafety"
     export function startLineSafetyMonitor(
+        level: MyLineSafetyLevel = MyLineSafetyLevel.Level1,
         pin: DigitalPin = DigitalPin.P15,
         color: number = 0,
         stopMotors: boolean = false,
@@ -1624,12 +1642,27 @@ namespace maqueenPlusV2 {
                 let r1 = (bits & 0x02) ? 1 : 0;
                 let r2 = (bits & 0x01) ? 1 : 0;
 
-                let isOnLine = (l1 === 1 || m === 1 || r1 === 1);
-                // 5센서 모두 흑색 = 결승선 테이프 통과 중 → 이탈로 오판하지 않음
-                // (3센서만 사용하면 교차로에서도 억제되어 이탈 감지가 안 될 수 있음)
-                let atFinishLine = (l2 === 1 && l1 === 1 && m === 1 && r1 === 1 && r2 === 1);
-                // Trigger if L2 or R2 detects the black line, or if we were on the line and now completely lost it
-                let deviated = !atFinishLine && ((l2 === 1 || r2 === 1) || (wasOnLine && !isOnLine && l2 === 0 && r2 === 0));
+                // 결승선 판정과 동일한 기준(L1, M, R1 모두 검은색)으로 통일해 오탐을 막음
+                let atFinishLine = (l1 === 1 && m === 1 && r1 === 1);
+
+                let isOnLine: boolean;
+                let deviated: boolean;
+
+                if (level === MyLineSafetyLevel.Level2) {
+                    // 2단계: L1/R1이 검은선을 밟는 것 자체는 이탈이 아님(커브 보정으로 흔히 생김).
+                    // 한 번 라인을 타고 있었는데(L1·M·R1 중 하나라도 검음) 이후 5개 센서가 전부
+                    // 흰색이 되어 완전히 놓쳤을 때만 이탈로 판정
+                    isOnLine = (l1 === 1 || m === 1 || r1 === 1);
+                    deviated = !atFinishLine && (wasOnLine && !isOnLine && l2 === 0 && r2 === 0);
+                } else if (level === MyLineSafetyLevel.Level3) {
+                    // 3단계: 가운데 센서(M)가 검은선을 벗어나면 즉시 이탈
+                    isOnLine = (m === 1);
+                    deviated = !atFinishLine && !isOnLine;
+                } else {
+                    // 1단계(기본): 가장 바깥쪽 센서(L2, R2)가 검은선을 밟으면 이탈. 보조 판정 없이 가장 단순함
+                    isOnLine = !(l2 === 1 || r2 === 1);
+                    deviated = !atFinishLine && (l2 === 1 || r2 === 1);
+                }
 
                 if (deviated && !deviationLatched) {
                     // 레이스 타이머가 동작 중이면 이탈 시점의 경과 시간을 "실패 기록"으로 저장하고 타이머를 멈춤
@@ -1642,7 +1675,7 @@ namespace maqueenPlusV2 {
                     control.raiseEvent(LINE_DEVIATED_EVENT_SOURCE, LINE_DEVIATED_EVENT_VALUE);
                     deviationLatched = true;
                     wasOnLine = false;
-                } else if (isOnLine && l2 === 0 && r2 === 0) {
+                } else if (isOnLine && !deviated) {
                     wasOnLine = true;
                     deviationLatched = false;
                 }
@@ -1708,8 +1741,8 @@ namespace maqueenPlusV2 {
     //% weight=8
     //% blockId=I2CInitForClass
     //% block="initialize via I2C until success"
-    //% subcategory="Class"
-    //% group="Class01Setup"
+    //% subcategory="New Features"
+    //% group="NewSetup"
     export function I2CInitForClass(): void {
         I2CInit();
     }
@@ -1724,8 +1757,8 @@ namespace maqueenPlusV2 {
     //% block="set %emotor direction %edir speed %speed"
     //% speed.min=0 speed.max=255
     //% weight=7
-    //% subcategory="Class"
-    //% group="Class02Drive"
+    //% subcategory="New Features"
+    //% group="NewDrive"
     export function controlMotorForClass(emotor: MyEnumMotor, edir: MyEnumDir, speed: number): void {
         controlMotor(emotor, edir, speed);
     }
@@ -1737,8 +1770,8 @@ namespace maqueenPlusV2 {
     //% blockId=controlMotorStopForClass
     //% block="set %emotor stop"
     //% weight=6
-    //% subcategory="Class"
-    //% group="Class02Drive"
+    //% subcategory="New Features"
+    //% group="NewDrive"
     export function controlMotorStopForClass(emotor: MyEnumMotor): void {
         controlMotorStop(emotor);
     }
@@ -1777,8 +1810,8 @@ namespace maqueenPlusV2 {
     //% weight=5
     //% blockId=startRaceTimer
     //% block="레이스 타이머 시작"
-    //% subcategory="Class"
-    //% group="Class04RaceTimer"
+    //% subcategory="New Features"
+    //% group="NewRaceTimer"
     export function startRaceTimer(): void {
         raceFinishMonitorActive = false;
         basic.pause(60);
@@ -1823,10 +1856,12 @@ namespace maqueenPlusV2 {
     }
 
     /**
-     * 수업용: 5개 센서가 모두 흑색을 감지하면(넓은 결승선 테이프) 실행할 코드를 등록합니다.
+     * 수업용: startRaceTimer()로 시작한 결승선 감지(L1, M, R1 3개 센서 모두 흑색)에 도착하면
+     * 실행할 코드를 등록합니다. startRaceTimer()를 먼저 호출하지 않으면 이 이벤트는 발생하지 않습니다.
      * V3 내장 라인 주행(patrolling ON) 사용 시, 핸들러 안에서 모터를 멈추려면
      * controlMotorStop 전에 patrolling(OFF)를 반드시 먼저 호출하세요.
-     * Run code when all 5 sensors detect black (wide finish line tape).
+     * Run code when the finish line is detected (L1, M, R1 all black), as started by startRaceTimer().
+     * This event never fires unless startRaceTimer() has been called first.
      * @param body code to run on finish
      */
     //% weight=4
@@ -1847,8 +1882,8 @@ namespace maqueenPlusV2 {
     //% weight=3
     //% blockId=getRaceElapsedSeconds
     //% block="레이스 경과 시간(초)"
-    //% subcategory="Class"
-    //% group="Class04RaceTimer"
+    //% subcategory="New Features"
+    //% group="NewRaceTimer"
     export function getRaceElapsedSeconds(): number {
         if (raceFinishTime > 0) return raceFinishElapsedSeconds;
         if (raceFailTime > 0) return raceFailElapsedSeconds;
@@ -1863,8 +1898,8 @@ namespace maqueenPlusV2 {
     //% weight=2.5
     //% blockId=getRaceFailSeconds
     //% block="라인 이탈 실패 시간(초)"
-    //% subcategory="Class"
-    //% group="Class04RaceTimer"
+    //% subcategory="New Features"
+    //% group="NewRaceTimer"
     export function getRaceFailSeconds(): number {
         return raceFailElapsedSeconds;
     }
@@ -1878,8 +1913,8 @@ namespace maqueenPlusV2 {
     //% weight=2.7
     //% blockId=getRaceDistanceCm
     //% block="레이스 이동 거리(cm)"
-    //% subcategory="Class"
-    //% group="Class04RaceTimer"
+    //% subcategory="New Features"
+    //% group="NewRaceTimer"
     export function getRaceDistanceCm(): number {
         if (raceFinishTime > 0) return raceFinishDistanceCm;
         if (raceFailTime > 0) return raceFailDistanceCm;
@@ -1894,8 +1929,8 @@ namespace maqueenPlusV2 {
     //% weight=2
     //% blockId=showRaceResult
     //% block="결승선 도착 시간 표시"
-    //% subcategory="Class"
-    //% group="Class04RaceTimer"
+    //% subcategory="New Features"
+    //% group="NewRaceTimer"
     export function showRaceResult(): void {
         let end = raceFinishTime > 0 ? raceFinishTime : (raceFailTime > 0 ? raceFailTime : control.millis());
         let ms = end - raceStartTime;
@@ -1915,8 +1950,8 @@ namespace maqueenPlusV2 {
     //% weight=20
     //% blockId=radioSetupForClass
     //% block="라디오 채널 %channel 로 설정하고 내 식별번호 %myId 저장"
-    //% subcategory="Class"
-    //% group="Class05Radio"
+    //% subcategory="New Features"
+    //% group="NewRadio"
     export function radioSetupForClass(channel: number, myId: number): void {
         radio.setGroup(channel);
         myRadioId = myId;
@@ -1929,8 +1964,8 @@ namespace maqueenPlusV2 {
     //% weight=19
     //% blockId=radioSendLineDeviatedForClass
     //% block="라인 이탈 정보 라디오로 보내기"
-    //% subcategory="Class"
-    //% group="Class05Radio"
+    //% subcategory="New Features"
+    //% group="NewRadio"
     export function radioSendLineDeviatedForClass(): void {
         radio.sendValue("id", myRadioId);
         radio.sendValue("ok", 0);
@@ -1945,8 +1980,8 @@ namespace maqueenPlusV2 {
     //% weight=18
     //% blockId=radioSendFinishForClass
     //% block="도착 정보 라디오로 보내기"
-    //% subcategory="Class"
-    //% group="Class05Radio"
+    //% subcategory="New Features"
+    //% group="NewRadio"
     export function radioSendFinishForClass(): void {
         radio.sendValue("id", myRadioId);
         radio.sendValue("ok", 1);
