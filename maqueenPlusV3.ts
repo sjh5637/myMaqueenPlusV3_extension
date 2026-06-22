@@ -1555,8 +1555,9 @@ namespace maqueenPlusV2 {
                 let r2 = readLineSensorState(MyEnumLineSensor.SensorR2);
 
                 let isOnLine = (l1 === 1 || m === 1 || r1 === 1);
-                // L1·M·R1 모두 흑색 = 결승선 통과 중 → 이탈로 오판하지 않음
-                let atFinishLine = (l1 === 1 && m === 1 && r1 === 1);
+                // 5센서 모두 흑색 = 결승선 테이프 통과 중 → 이탈로 오판하지 않음
+                // (3센서만 사용하면 교차로에서도 억제되어 이탈 감지가 안 될 수 있음)
+                let atFinishLine = (l2 === 1 && l1 === 1 && m === 1 && r1 === 1 && r2 === 1);
                 // Trigger if L2 or R2 detects the black line, or if we were on the line and now completely lost it
                 let deviated = !atFinishLine && ((l2 === 1 || r2 === 1) || (wasOnLine && !isOnLine && l2 === 0 && r2 === 0));
 
@@ -1606,7 +1607,7 @@ namespace maqueenPlusV2 {
     //% block="warn wrong (sound and light)"
     //% subcategory="Class"
     export function warnWrong(): void {
-        // 모터는 호출하지 않아 제자리에 머무릅니다.
+        stopAnimations(DigitalPin.P15);
         for (let i = 0; i < 3; i++) {
             showColor(DigitalPin.P15, NeoPixelColors.Red);
             controlLED(MyEnumLed.AllLed, MyEnumSwitch.Open);
@@ -1682,10 +1683,13 @@ namespace maqueenPlusV2 {
         control.inBackground(function () {
             let seenNonBlack = false;
             while (raceFinishMonitorActive) {
+                let l2 = readLineSensorState(MyEnumLineSensor.SensorL2);
                 let l1 = readLineSensorState(MyEnumLineSensor.SensorL1);
                 let m = readLineSensorState(MyEnumLineSensor.SensorM);
                 let r1 = readLineSensorState(MyEnumLineSensor.SensorR1);
-                let allBlack = (l1 === 1 && m === 1 && r1 === 1);
+                let r2 = readLineSensorState(MyEnumLineSensor.SensorR2);
+                // 5센서 모두 흑색 = 결승선 넓은 테이프 통과. 3센서만 쓰면 교차로에서 오감지.
+                let allBlack = (l2 === 1 && l1 === 1 && m === 1 && r1 === 1 && r2 === 1);
                 if (!allBlack) seenNonBlack = true;
                 if (allBlack && seenNonBlack) {
                     safetyMonitorActive = false;
@@ -1699,8 +1703,10 @@ namespace maqueenPlusV2 {
     }
 
     /**
-     * 수업용: 앞 센서 L1·M·R1이 모두 흑색을 감지하면(도착선) 실행할 코드를 등록합니다.
-     * Run code when the robot reaches the finish line (L1, M, R1 all detect black).
+     * 수업용: 5개 센서가 모두 흑색을 감지하면(넓은 결승선 테이프) 실행할 코드를 등록합니다.
+     * V3 내장 라인 주행(patrolling ON) 사용 시, 핸들러 안에서 모터를 멈추려면
+     * controlMotorStop 전에 patrolling(OFF)를 반드시 먼저 호출하세요.
+     * Run code when all 5 sensors detect black (wide finish line tape).
      * @param body code to run on finish
      */
     //% weight=4
