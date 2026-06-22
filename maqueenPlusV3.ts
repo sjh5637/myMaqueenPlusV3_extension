@@ -1562,6 +1562,12 @@ namespace maqueenPlusV2 {
                 let deviated = !atFinishLine && ((l2 === 1 || r2 === 1) || (wasOnLine && !isOnLine && l2 === 0 && r2 === 0));
 
                 if (deviated && !deviationLatched) {
+                    // 레이스 타이머가 동작 중이면 이탈 시점의 경과 시간을 "실패 기록"으로 저장하고 타이머를 멈춤
+                    if (raceFinishMonitorActive) {
+                        raceFailTime = input.runningTime();
+                        raceFailElapsedSeconds = Math.idiv(raceFailTime - raceStartTime, 1000);
+                        raceFinishMonitorActive = false;
+                    }
                     control.raiseEvent(LINE_DEVIATED_EVENT_SOURCE, LINE_DEVIATED_EVENT_VALUE);
                     deviationLatched = true;
                     wasOnLine = false;
@@ -1665,6 +1671,9 @@ namespace maqueenPlusV2 {
     let raceStartTime = 0;
     let raceFinishTime = 0;
     let raceFinishMonitorActive = false;
+    let raceFinishElapsedSeconds = 0;  // 결승선 도착 시 저장된 경과 시간(초)
+    let raceFailTime = 0;
+    let raceFailElapsedSeconds = 0;    // 라인 이탈(실패) 시 저장된 경과 시간(초)
 
     /**
      * 수업용: 레이스 타이머를 시작하고 도착선(앞 센서 L1·M·R1 모두 흑색) 감지를 시작합니다.
@@ -1679,21 +1688,23 @@ namespace maqueenPlusV2 {
         basic.pause(60);
         raceStartTime = input.runningTime();
         raceFinishTime = 0;
+        raceFinishElapsedSeconds = 0;
+        raceFailTime = 0;
+        raceFailElapsedSeconds = 0;
         raceFinishMonitorActive = true;
         control.inBackground(function () {
             let seenNonBlack = false;
             while (raceFinishMonitorActive) {
-                let l2 = readLineSensorState(MyEnumLineSensor.SensorL2);
                 let l1 = readLineSensorState(MyEnumLineSensor.SensorL1);
                 let m = readLineSensorState(MyEnumLineSensor.SensorM);
                 let r1 = readLineSensorState(MyEnumLineSensor.SensorR1);
-                let r2 = readLineSensorState(MyEnumLineSensor.SensorR2);
-                // 5센서 모두 흑색 = 결승선 넓은 테이프 통과. 3센서만 쓰면 교차로에서 오감지.
-                let allBlack = (l2 === 1 && l1 === 1 && m === 1 && r1 === 1 && r2 === 1);
+                // 결승선 판정: L1, M, R1 3개 센서가 모두 흑색
+                let allBlack = (l1 === 1 && m === 1 && r1 === 1);
                 if (!allBlack) seenNonBlack = true;
                 if (allBlack && seenNonBlack) {
                     safetyMonitorActive = false;
                     raceFinishTime = input.runningTime();
+                    raceFinishElapsedSeconds = Math.idiv(raceFinishTime - raceStartTime, 1000);
                     raceFinishMonitorActive = false;
                     control.raiseEvent(RACE_FINISH_EVENT_SOURCE, RACE_FINISH_EVENT_VALUE);
                 }
@@ -1720,16 +1731,30 @@ namespace maqueenPlusV2 {
 
     /**
      * 수업용: 레이스 타이머 시작 후 경과된 시간을 초(정수) 단위로 반환합니다.
-     * 도착 후에는 도착 순간의 시간을 반환합니다.
-     * Return the elapsed race time in whole seconds. After finishing, returns the captured finish time.
+     * 도착선에 도착했으면 도착 순간의 시간을, 라인을 이탈했으면 이탈 순간의 시간을 반환합니다.
+     * Return the elapsed race time in whole seconds. Returns the captured finish or fail time once the race has ended.
      */
     //% weight=3
     //% blockId=getRaceElapsedSeconds
     //% block="레이스 경과 시간(초)"
     //% subcategory="Class"
     export function getRaceElapsedSeconds(): number {
-        let end = raceFinishTime > 0 ? raceFinishTime : input.runningTime();
-        return Math.idiv(end - raceStartTime, 1000);
+        if (raceFinishTime > 0) return raceFinishElapsedSeconds;
+        if (raceFailTime > 0) return raceFailElapsedSeconds;
+        return Math.idiv(input.runningTime() - raceStartTime, 1000);
+    }
+
+    /**
+     * 수업용: 라인을 이탈해서 레이스에 실패했을 때 저장된 경과 시간을 초(정수) 단위로 반환합니다.
+     * 이탈한 적이 없으면 0을 반환합니다.
+     * Return the elapsed time (in whole seconds) captured when the robot deviated from the line. Returns 0 if it never deviated.
+     */
+    //% weight=2.5
+    //% blockId=getRaceFailSeconds
+    //% block="라인 이탈 실패 시간(초)"
+    //% subcategory="Class"
+    export function getRaceFailSeconds(): number {
+        return raceFailElapsedSeconds;
     }
 
     /**
@@ -1742,7 +1767,7 @@ namespace maqueenPlusV2 {
     //% block="결승선 도착 시간 표시"
     //% subcategory="Class"
     export function showRaceResult(): void {
-        let end = raceFinishTime > 0 ? raceFinishTime : input.runningTime();
+        let end = raceFinishTime > 0 ? raceFinishTime : (raceFailTime > 0 ? raceFailTime : input.runningTime());
         let ms = end - raceStartTime;
         let secs = Math.idiv(ms, 1000);
         let tenths = Math.idiv(ms % 1000, 100);
