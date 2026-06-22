@@ -1555,9 +1555,10 @@ namespace maqueenPlusV2 {
                 let r2 = readLineSensorState(MyEnumLineSensor.SensorR2);
 
                 let isOnLine = (l1 === 1 || m === 1 || r1 === 1);
-                
+                // L1·M·R1 모두 흑색 = 결승선 통과 중 → 이탈로 오판하지 않음
+                let atFinishLine = (l1 === 1 && m === 1 && r1 === 1);
                 // Trigger if L2 or R2 detects the black line, or if we were on the line and now completely lost it
-                let deviated = (l2 === 1 || r2 === 1) || (wasOnLine && !isOnLine && l2 === 0 && r2 === 0);
+                let deviated = !atFinishLine && ((l2 === 1 || r2 === 1) || (wasOnLine && !isOnLine && l2 === 0 && r2 === 0));
 
                 if (deviated && !deviationLatched) {
                     control.raiseEvent(LINE_DEVIATED_EVENT_SOURCE, LINE_DEVIATED_EVENT_VALUE);
@@ -1687,6 +1688,7 @@ namespace maqueenPlusV2 {
                 let allBlack = (l1 === 1 && m === 1 && r1 === 1);
                 if (!allBlack) seenNonBlack = true;
                 if (allBlack && seenNonBlack) {
+                    safetyMonitorActive = false;
                     raceFinishTime = input.runningTime();
                     raceFinishMonitorActive = false;
                     control.raiseEvent(RACE_FINISH_EVENT_SOURCE, RACE_FINISH_EVENT_VALUE);
