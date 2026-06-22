@@ -16,7 +16,7 @@ const enum PatrolSpeed {
  * Custom graphic block
  */
 //% weight=100 color=#0fbc11 icon="\uf067" block="MaqueenPlusV3"
-//% groups="['Setup', 'Motor', 'LED', 'Sensors', 'NeoPixel', 'V3', 'Effects', 'New Features', 'ClassSetup', 'ClassLineSafety', 'ClassRaceTimer', 'ClassEmotion']"
+//% groups="['Setup', 'Motor', 'LED', 'Sensors', 'NeoPixel', 'V3', 'Effects', 'New Features', 'ClassSetup', 'ClassLineSafety', 'ClassRaceTimer', 'ClassEmotion', 'ClassRadio']"
 //% subcategories="['New Features', 'Class']"
 namespace maqueenPlusV2 {
 
@@ -1568,6 +1568,7 @@ namespace maqueenPlusV2 {
                     if (raceFinishMonitorActive) {
                         raceFailTime = input.runningTime();
                         raceFailElapsedSeconds = Math.idiv(raceFailTime - raceStartTime, 1000);
+                        raceFailDistanceCm = raceDistanceCm;
                         raceFinishMonitorActive = false;
                     }
                     control.raiseEvent(LINE_DEVIATED_EVENT_SOURCE, LINE_DEVIATED_EVENT_VALUE);
@@ -1697,6 +1698,9 @@ namespace maqueenPlusV2 {
     let raceFinishElapsedSeconds = 0;  // 결승선 도착 시 저장된 경과 시간(초)
     let raceFailTime = 0;
     let raceFailElapsedSeconds = 0;    // 라인 이탈(실패) 시 저장된 경과 시간(초)
+    let raceDistanceCm = 0;            // 좌/우 바퀴 속도를 적분해 역산한 누적 이동 거리(cm)
+    let raceFinishDistanceCm = 0;      // 결승선 도착 시 저장된 이동 거리(cm)
+    let raceFailDistanceCm = 0;        // 라인 이탈(실패) 시 저장된 이동 거리(cm)
 
     /**
      * 수업용: 레이스 타이머를 시작하고 도착선(앞 센서 L1·M·R1 모두 흑색) 감지를 시작합니다.
@@ -1715,9 +1719,13 @@ namespace maqueenPlusV2 {
         raceFinishElapsedSeconds = 0;
         raceFailTime = 0;
         raceFailElapsedSeconds = 0;
+        raceDistanceCm = 0;
+        raceFinishDistanceCm = 0;
+        raceFailDistanceCm = 0;
         raceFinishMonitorActive = true;
         control.inBackground(function () {
             let seenNonBlack = false;
+            let lastSampleTime = raceStartTime;
             while (raceFinishMonitorActive) {
                 let l1 = readLineSensorState(MyEnumLineSensor.SensorL1);
                 let m = readLineSensorState(MyEnumLineSensor.SensorM);
@@ -1725,10 +1733,19 @@ namespace maqueenPlusV2 {
                 // 결승선 판정: L1, M, R1 3개 센서가 모두 흑색
                 let allBlack = (l1 === 1 && m === 1 && r1 === 1);
                 if (!allBlack) seenNonBlack = true;
+
+                // 좌/우 바퀴 속도(cm/s)를 경과 시간만큼 적분해 이동 거리(cm)를 역산
+                let now = input.runningTime();
+                let leftSpeed = readRealTimeSpeed(DirectionType2.Left);
+                let rightSpeed = readRealTimeSpeed(DirectionType2.Right);
+                raceDistanceCm += (leftSpeed + rightSpeed) / 2 * (now - lastSampleTime) / 1000;
+                lastSampleTime = now;
+
                 if (allBlack && seenNonBlack) {
                     safetyMonitorActive = false;
-                    raceFinishTime = input.runningTime();
+                    raceFinishTime = now;
                     raceFinishElapsedSeconds = Math.idiv(raceFinishTime - raceStartTime, 1000);
+                    raceFinishDistanceCm = raceDistanceCm;
                     raceFinishMonitorActive = false;
                     control.raiseEvent(RACE_FINISH_EVENT_SOURCE, RACE_FINISH_EVENT_VALUE);
                 }
@@ -1785,6 +1802,23 @@ namespace maqueenPlusV2 {
     }
 
     /**
+     * 수업용: 좌/우 바퀴 속도를 적분해 역산한 이동 거리를 cm 단위로 반환합니다.
+     * 도착선에 도착했으면 도착 순간의 거리를, 라인을 이탈했으면 이탈 순간의 거리를 반환합니다.
+     * Return the estimated distance traveled in cm, dead-reckoned from wheel speed.
+     * Returns the captured finish or fail distance once the race has ended.
+     */
+    //% weight=2.7
+    //% blockId=getRaceDistanceCm
+    //% block="레이스 이동 거리(cm)"
+    //% subcategory="Class"
+    //% group="ClassRaceTimer"
+    export function getRaceDistanceCm(): number {
+        if (raceFinishTime > 0) return raceFinishDistanceCm;
+        if (raceFailTime > 0) return raceFailDistanceCm;
+        return raceDistanceCm;
+    }
+
+    /**
      * 수업용: 도착 시간을 마이크로비트 LED에 소수점 1자리(0.1초 단위)로 표시합니다.
      * 예: 12.7초 → "12.7" 스크롤 표시.
      * Show the finish time on the micro:bit LED display with one decimal place (0.1s precision).
@@ -1800,6 +1834,56 @@ namespace maqueenPlusV2 {
         let secs = Math.idiv(ms, 1000);
         let tenths = Math.idiv(ms % 1000, 100);
         basic.showString(secs + "." + tenths);
+    }
+
+    let myRadioId = 0;
+
+    /**
+     * 수업용: 라디오 채널을 설정하고 내 식별번호를 저장합니다. "시작하기"에 놓고 사용하세요.
+     * Set the radio group/channel and store this micro:bit's identification number. Place in "on start".
+     * @param channel radio group number, eg: 1
+     * @param myId this micro:bit's identification number, eg: 1
+     */
+    //% weight=20
+    //% blockId=radioSetupForClass
+    //% block="라디오 채널 %channel 로 설정하고 내 식별번호 %myId 저장"
+    //% subcategory="Class"
+    //% group="ClassRadio"
+    export function radioSetupForClass(channel: number, myId: number): void {
+        radio.setGroup(channel);
+        myRadioId = myId;
+    }
+
+    /**
+     * 수업용: 라인 이탈(실패) 정보를 라디오로 보냅니다 (식별번호, 실패여부, 이동거리, 걸린시간).
+     * Send line-deviation (failure) info over radio: id, success flag, distance, elapsed time.
+     */
+    //% weight=19
+    //% blockId=radioSendLineDeviatedForClass
+    //% block="라인 이탈 정보 라디오로 보내기"
+    //% subcategory="Class"
+    //% group="ClassRadio"
+    export function radioSendLineDeviatedForClass(): void {
+        radio.sendValue("id", myRadioId);
+        radio.sendValue("ok", 0);
+        radio.sendValue("dist", raceFailDistanceCm);
+        radio.sendValue("time", raceFailElapsedSeconds);
+    }
+
+    /**
+     * 수업용: 도착 정보를 라디오로 보냅니다 (식별번호, 실패여부, 이동거리, 걸린시간).
+     * Send finish info over radio: id, success flag, distance, elapsed time.
+     */
+    //% weight=18
+    //% blockId=radioSendFinishForClass
+    //% block="도착 정보 라디오로 보내기"
+    //% subcategory="Class"
+    //% group="ClassRadio"
+    export function radioSendFinishForClass(): void {
+        radio.sendValue("id", myRadioId);
+        radio.sendValue("ok", 1);
+        radio.sendValue("dist", raceFinishDistanceCm);
+        radio.sendValue("time", raceFinishElapsedSeconds);
     }
 
 }
