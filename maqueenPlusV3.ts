@@ -16,7 +16,7 @@ const enum PatrolSpeed {
  * Custom graphic block
  */
 //% weight=100 color=#0fbc11 icon="\uf067" block="MaqueenPlusV3"
-//% groups="['Setup', 'Motor', 'LED', 'Sensors', 'NeoPixel', 'V3', 'Effects', 'New Features']"
+//% groups="['Setup', 'Motor', 'LED', 'Sensors', 'NeoPixel', 'V3', 'Effects', 'New Features', 'ClassSetup', 'ClassLineSafety', 'ClassRaceTimer', 'ClassEmotion']"
 //% subcategories="['New Features', 'Class']"
 namespace maqueenPlusV2 {
 
@@ -1331,6 +1331,7 @@ namespace maqueenPlusV2 {
     //% blockId=expressEmotion
     //% block="express emotion %emotion"
     //% subcategory="Class"
+    //% group="ClassEmotion"
     export function expressEmotion(emotion: MyEmotion): void {
         stopAnimations(DigitalPin.P15);
 
@@ -1534,6 +1535,7 @@ namespace maqueenPlusV2 {
     //% blockId=lineMonitorStart
     //% block="start line monitor"
     //% subcategory="Class"
+    //% group="ClassLineSafety"
     export function startLineSafetyMonitor(
         pin: DigitalPin = DigitalPin.P15,
         color: number = 0,
@@ -1587,6 +1589,7 @@ namespace maqueenPlusV2 {
     //% blockId=lineMonitorStop
     //% block="stop line monitor"
     //% subcategory="Class"
+    //% group="ClassLineSafety"
     export function stopLineSafetyMonitor(pin: DigitalPin = DigitalPin.P15): void {
         safetyMonitorActive = false;
     }
@@ -1600,6 +1603,7 @@ namespace maqueenPlusV2 {
     //% block="when line deviated"
     //% blockGap=16
     //% subcategory="Class"
+    //% group="ClassLineSafety"
     export function onLineDeviated(body: () => void): void {
         control.onEvent(LINE_DEVIATED_EVENT_SOURCE, LINE_DEVIATED_EVENT_VALUE, body);
     }
@@ -1612,6 +1616,7 @@ namespace maqueenPlusV2 {
     //% blockId=warnWrong
     //% block="warn wrong (sound and light)"
     //% subcategory="Class"
+    //% group="ClassLineSafety"
     export function warnWrong(): void {
         stopAnimations(DigitalPin.P15);
         for (let i = 0; i < 3; i++) {
@@ -1635,6 +1640,7 @@ namespace maqueenPlusV2 {
     //% blockId=I2CInitForClass
     //% block="initialize via I2C until success"
     //% subcategory="Class"
+    //% group="ClassSetup"
     export function I2CInitForClass(): void {
         I2CInit();
     }
@@ -1650,6 +1656,7 @@ namespace maqueenPlusV2 {
     //% speed.min=0 speed.max=255
     //% weight=7
     //% subcategory="Class"
+    //% group="ClassSetup"
     export function controlMotorForClass(emotor: MyEnumMotor, edir: MyEnumDir, speed: number): void {
         controlMotor(emotor, edir, speed);
     }
@@ -1662,8 +1669,24 @@ namespace maqueenPlusV2 {
     //% block="set %emotor stop"
     //% weight=6
     //% subcategory="Class"
+    //% group="ClassSetup"
     export function controlMotorStopForClass(emotor: MyEnumMotor): void {
         controlMotorStop(emotor);
+    }
+
+    /**
+     * 수업용: 초 단위로 기다립니다. 소수도 입력할 수 있습니다 (예: 1.5초).
+     * 기존 "기다리기 (ms)" 블록은 1000 단위라 초등학생이 헷갈려해서 만든 초 단위 버전입니다.
+     * Wait for the given number of seconds (decimals allowed), eg: 1
+     * @param seconds number of seconds to wait, eg: 1
+     */
+    //% blockId=waitSecondsForClass
+    //% block="기다리기 %seconds 초"
+    //% weight=5.9
+    //% subcategory="Class"
+    //% group="ClassSetup"
+    export function waitSecondsForClass(seconds: number): void {
+        basic.pause(Math.round(seconds * 1000));
     }
 
     const RACE_FINISH_EVENT_SOURCE = 3102;
@@ -1683,6 +1706,7 @@ namespace maqueenPlusV2 {
     //% blockId=startRaceTimer
     //% block="레이스 타이머 시작"
     //% subcategory="Class"
+    //% group="ClassRaceTimer"
     export function startRaceTimer(): void {
         raceFinishMonitorActive = false;
         basic.pause(60);
@@ -1725,6 +1749,7 @@ namespace maqueenPlusV2 {
     //% block="도착선에 도착하면"
     //% blockGap=16
     //% subcategory="Class"
+    //% group="ClassRaceTimer"
     export function onFinishLineArrived(body: () => void): void {
         control.onEvent(RACE_FINISH_EVENT_SOURCE, RACE_FINISH_EVENT_VALUE, body);
     }
@@ -1738,6 +1763,7 @@ namespace maqueenPlusV2 {
     //% blockId=getRaceElapsedSeconds
     //% block="레이스 경과 시간(초)"
     //% subcategory="Class"
+    //% group="ClassRaceTimer"
     export function getRaceElapsedSeconds(): number {
         if (raceFinishTime > 0) return raceFinishElapsedSeconds;
         if (raceFailTime > 0) return raceFailElapsedSeconds;
@@ -1753,6 +1779,7 @@ namespace maqueenPlusV2 {
     //% blockId=getRaceFailSeconds
     //% block="라인 이탈 실패 시간(초)"
     //% subcategory="Class"
+    //% group="ClassRaceTimer"
     export function getRaceFailSeconds(): number {
         return raceFailElapsedSeconds;
     }
@@ -1766,6 +1793,7 @@ namespace maqueenPlusV2 {
     //% blockId=showRaceResult
     //% block="결승선 도착 시간 표시"
     //% subcategory="Class"
+    //% group="ClassRaceTimer"
     export function showRaceResult(): void {
         let end = raceFinishTime > 0 ? raceFinishTime : (raceFailTime > 0 ? raceFailTime : input.runningTime());
         let ms = end - raceStartTime;
