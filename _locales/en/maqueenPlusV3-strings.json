@@ -119,6 +119,7 @@
     "{id:group}ClassLineSafety": "Line Safety Monitor",
     "{id:group}ClassRaceTimer": "Race Timer",
     "{id:group}ClassEmotion": "Emotion",
+    "{id:group}ClassRadio": "Radio Report",
     "maqueenPlusV2.NeoPixelIndex.LED1|block": "1 (Left Front)",
     "maqueenPlusV2.NeoPixelIndex.LED2|block": "2 (Left Rear)",
     "maqueenPlusV2.NeoPixelIndex.LED3|block": "3 (Right Rear)",
