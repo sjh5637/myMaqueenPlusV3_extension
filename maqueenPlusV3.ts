@@ -16,7 +16,7 @@ const enum PatrolSpeed {
  * Custom graphic block
  */
 //% weight=100 color=#0fbc11 icon="\uf067" block="MaqueenPlusV3"
-//% groups="['Setup', 'Motor', 'LED', 'Sensors', 'NeoPixel', 'V3', 'Effects', 'NewRaceTimer', 'Class01Setup', 'Class02Drive', 'Class03LineSafety', 'Class04RaceTimer', 'Class05Emotion']"
+//% groups="['Setup', 'Motor', 'LED', 'Sensors', 'NeoPixel', 'V3', 'Effects', 'NewRaceTimer', 'Class01Setup', 'Class02Drive', 'Class03LineMonitor', 'Class04Emotion']"
 //% subcategories="['New Features', 'Class']"
 namespace maqueenPlusV2 {
 
@@ -1401,7 +1401,7 @@ namespace maqueenPlusV2 {
     //% blockId=expressEmotion
     //% block="express emotion %emotion"
     //% subcategory="Class"
-    //% group="Class05Emotion"
+    //% group="Class04Emotion"
     export function expressEmotion(emotion: MyEmotion): void {
         stopAnimations(DigitalPin.P15);
 
@@ -1622,7 +1622,7 @@ namespace maqueenPlusV2 {
     //% blockId=lineMonitorStart
     //% block="start line monitor level %level"
     //% subcategory="Class"
-    //% group="Class03LineSafety"
+    //% group="Class03LineMonitor"
     export function startLineSafetyMonitor(
         level: MyLineSafetyLevel = MyLineSafetyLevel.Level1
     ): void {
@@ -1683,11 +1683,11 @@ namespace maqueenPlusV2 {
     /**
      * Stop the line safety monitor
      */
-    //% weight=11
+    //% weight=7
     //% blockId=lineMonitorStop
     //% block="stop line monitor"
     //% subcategory="Class"
-    //% group="Class03LineSafety"
+    //% group="Class03LineMonitor"
     export function stopLineSafetyMonitor(): void {
         safetyMonitorActive = false;
     }
@@ -1701,7 +1701,7 @@ namespace maqueenPlusV2 {
     //% block="when line deviated"
     //% blockGap=16
     //% subcategory="Class"
-    //% group="Class03LineSafety"
+    //% group="Class03LineMonitor"
     export function onLineDeviated(body: () => void): void {
         control.onEvent(LINE_DEVIATED_EVENT_SOURCE, LINE_DEVIATED_EVENT_VALUE, body);
     }
@@ -1714,7 +1714,7 @@ namespace maqueenPlusV2 {
     //% blockId=warnWrong
     //% block="warn wrong (sound and light)"
     //% subcategory="Class"
-    //% group="Class03LineSafety"
+    //% group="Class03LineMonitor"
     export function warnWrong(): void {
         stopAnimations(DigitalPin.P15);
         for (let i = 0; i < 3; i++) {
@@ -1780,9 +1780,9 @@ namespace maqueenPlusV2 {
      */
     //% blockId=waitSecondsForClass
     //% block="기다리기 %seconds 초"
-    //% weight=5.9
+    //% weight=6.5
     //% subcategory="Class"
-    //% group="Class01Setup"
+    //% group="Class02Drive"
     export function waitSecondsForClass(seconds: number): void {
         basic.pause(Math.round(seconds * 1000));
     }
@@ -1802,11 +1802,11 @@ namespace maqueenPlusV2 {
      * Start monitoring for the finish line (L1, M, R1 all detect black). Raises the "on finish line arrived" event when detected.
      * Detection keeps running until stopFinishLineMonitor() is called.
      */
-    //% weight=6
+    //% weight=11
     //% blockId=startFinishLineMonitor
     //% block="start finish line monitor"
     //% subcategory="Class"
-    //% group="Class04RaceTimer"
+    //% group="Class03LineMonitor"
     export function startFinishLineMonitor(): void {
         if (raceFinishMonitorActive) return;
         raceFinishMonitorActive = true;
@@ -1839,26 +1839,26 @@ namespace maqueenPlusV2 {
      * 수업용: 도착선 감지를 중지합니다.
      * Stop the finish line monitor.
      */
-    //% weight=5.8
+    //% weight=6
     //% blockId=stopFinishLineMonitor
     //% block="stop finish line monitor"
     //% subcategory="Class"
-    //% group="Class04RaceTimer"
+    //% group="Class03LineMonitor"
     export function stopFinishLineMonitor(): void {
         raceFinishMonitorActive = false;
     }
 
     /**
-     * 수업용: 시간 기록 변수를 0으로 초기화하고 타이머를 시작합니다.
+     * 시간 기록 변수를 0으로 초기화하고 타이머를 시작합니다.
      * 도착선 감지는 별도로 startFinishLineMonitor()를 호출해야 시작됩니다.
      * Reset the time tracking variables and start the timer.
      * Finish line detection must be started separately via startFinishLineMonitor().
      */
-    //% weight=5
+    //% weight=4
     //% blockId=startRaceTimer
     //% block="start timer"
-    //% subcategory="Class"
-    //% group="Class04RaceTimer"
+    //% subcategory="New Features"
+    //% group="NewRaceTimer"
     export function startRaceTimer(): void {
         raceStartTime = control.millis();
         raceFinishTime = 0;
@@ -1876,12 +1876,12 @@ namespace maqueenPlusV2 {
      * This event never fires unless startFinishLineMonitor() has been called first.
      * @param body code to run on finish
      */
-    //% weight=4
+    //% weight=8
     //% blockId=onFinishLineArrived
     //% block="도착선에 도착하면"
     //% blockGap=16
     //% subcategory="Class"
-    //% group="Class04RaceTimer"
+    //% group="Class03LineMonitor"
     export function onFinishLineArrived(body: () => void): void {
         control.onEvent(RACE_FINISH_EVENT_SOURCE, RACE_FINISH_EVENT_VALUE, body);
     }
