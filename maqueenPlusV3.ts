@@ -1658,4 +1658,63 @@ namespace maqueenPlusV2 {
         controlMotorStop(emotor);
     }
 
+    const RACE_FINISH_EVENT_SOURCE = 3102;
+    const RACE_FINISH_EVENT_VALUE = 1;
+    let raceStartTime = 0;
+    let raceFinishMonitorActive = false;
+
+    /**
+     * 수업용: 레이스 타이머를 시작하고 도착선(앞 센서 L1·M·R1 모두 흑색) 감지를 시작합니다.
+     * Start the race timer and begin monitoring for the finish line (L1, M, R1 all detect black).
+     */
+    //% weight=5
+    //% blockId=startRaceTimer
+    //% block="레이스 타이머 시작"
+    //% subcategory="Class"
+    export function startRaceTimer(): void {
+        raceStartTime = input.runningTime();
+        raceFinishMonitorActive = true;
+        control.inBackground(function () {
+            let seenNonBlack = false;
+            while (raceFinishMonitorActive) {
+                let l1 = readLineSensorState(MyEnumLineSensor.SensorL1);
+                let m = readLineSensorState(MyEnumLineSensor.SensorM);
+                let r1 = readLineSensorState(MyEnumLineSensor.SensorR1);
+                let allBlack = (l1 === 1 && m === 1 && r1 === 1);
+                if (!allBlack) seenNonBlack = true;
+                if (allBlack && seenNonBlack) {
+                    raceFinishMonitorActive = false;
+                    control.raiseEvent(RACE_FINISH_EVENT_SOURCE, RACE_FINISH_EVENT_VALUE);
+                }
+                basic.pause(50);
+            }
+        });
+    }
+
+    /**
+     * 수업용: 앞 센서 L1·M·R1이 모두 흑색을 감지하면(도착선) 실행할 코드를 등록합니다.
+     * Run code when the robot reaches the finish line (L1, M, R1 all detect black).
+     * @param body code to run on finish
+     */
+    //% weight=4
+    //% blockId=onFinishLineArrived
+    //% block="도착선에 도착하면"
+    //% blockGap=16
+    //% subcategory="Class"
+    export function onFinishLineArrived(body: () => void): void {
+        control.onEvent(RACE_FINISH_EVENT_SOURCE, RACE_FINISH_EVENT_VALUE, body);
+    }
+
+    /**
+     * 수업용: 레이스 타이머 시작 후 경과된 시간을 초(정수) 단위로 반환합니다.
+     * Return the elapsed race time in whole seconds since startRaceTimer was called.
+     */
+    //% weight=3
+    //% blockId=getRaceElapsedSeconds
+    //% block="레이스 경과 시간(초)"
+    //% subcategory="Class"
+    export function getRaceElapsedSeconds(): number {
+        return Math.round((input.runningTime() - raceStartTime) / 1000);
+    }
+
 }
