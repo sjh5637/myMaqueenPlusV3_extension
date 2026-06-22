@@ -1661,6 +1661,7 @@ namespace maqueenPlusV2 {
     const RACE_FINISH_EVENT_SOURCE = 3102;
     const RACE_FINISH_EVENT_VALUE = 1;
     let raceStartTime = 0;
+    let raceFinishTime = 0;
     let raceFinishMonitorActive = false;
 
     /**
@@ -1673,6 +1674,7 @@ namespace maqueenPlusV2 {
     //% subcategory="Class"
     export function startRaceTimer(): void {
         raceStartTime = input.runningTime();
+        raceFinishTime = 0;
         raceFinishMonitorActive = true;
         control.inBackground(function () {
             let seenNonBlack = false;
@@ -1683,6 +1685,7 @@ namespace maqueenPlusV2 {
                 let allBlack = (l1 === 1 && m === 1 && r1 === 1);
                 if (!allBlack) seenNonBlack = true;
                 if (allBlack && seenNonBlack) {
+                    raceFinishTime = input.runningTime();
                     raceFinishMonitorActive = false;
                     control.raiseEvent(RACE_FINISH_EVENT_SOURCE, RACE_FINISH_EVENT_VALUE);
                 }
@@ -1707,14 +1710,33 @@ namespace maqueenPlusV2 {
 
     /**
      * 수업용: 레이스 타이머 시작 후 경과된 시간을 초(정수) 단위로 반환합니다.
-     * Return the elapsed race time in whole seconds since startRaceTimer was called.
+     * 도착 후에는 도착 순간의 시간을 반환합니다.
+     * Return the elapsed race time in whole seconds. After finishing, returns the captured finish time.
      */
     //% weight=3
     //% blockId=getRaceElapsedSeconds
     //% block="레이스 경과 시간(초)"
     //% subcategory="Class"
     export function getRaceElapsedSeconds(): number {
-        return Math.round((input.runningTime() - raceStartTime) / 1000);
+        let end = raceFinishTime > 0 ? raceFinishTime : input.runningTime();
+        return Math.round((end - raceStartTime) / 1000);
+    }
+
+    /**
+     * 수업용: 도착 시간을 마이크로비트 LED에 소수점 1자리(0.1초 단위)로 표시합니다.
+     * 예: 12.7초 → "12.7" 스크롤 표시.
+     * Show the finish time on the micro:bit LED display with one decimal place (0.1s precision).
+     */
+    //% weight=2
+    //% blockId=showRaceResult
+    //% block="결승선 도착 시간 표시"
+    //% subcategory="Class"
+    export function showRaceResult(): void {
+        let end = raceFinishTime > 0 ? raceFinishTime : input.runningTime();
+        let ms = end - raceStartTime;
+        let secs = Math.idiv(ms, 1000);
+        let tenths = Math.idiv(ms % 1000, 100);
+        basic.showString(secs + "." + tenths);
     }
 
 }
