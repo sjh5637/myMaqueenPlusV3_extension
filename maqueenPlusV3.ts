@@ -16,7 +16,7 @@ const enum PatrolSpeed {
  * Custom graphic block
  */
 //% weight=100 color=#0fbc11 icon="\uf067" block="MaqueenPlusV3"
-//% groups="['Setup', 'Motor', 'LED', 'Sensors', 'NeoPixel', 'V3', 'Effects', 'New Features', 'ClassSetup', 'ClassLineSafety', 'ClassRaceTimer', 'ClassEmotion', 'ClassRadio']"
+//% groups="['Setup', 'Motor', 'LED', 'Sensors', 'NeoPixel', 'V3', 'Effects', 'New Features', 'Class01Setup', 'Class02Drive', 'Class03LineSafety', 'Class04RaceTimer', 'Class05Radio', 'Class06Emotion']"
 //% subcategories="['New Features', 'Class']"
 namespace maqueenPlusV2 {
 
@@ -1398,7 +1398,7 @@ namespace maqueenPlusV2 {
     //% blockId=expressEmotion
     //% block="express emotion %emotion"
     //% subcategory="Class"
-    //% group="ClassEmotion"
+    //% group="Class06Emotion"
     export function expressEmotion(emotion: MyEmotion): void {
         stopAnimations(DigitalPin.P15);
 
@@ -1602,7 +1602,7 @@ namespace maqueenPlusV2 {
     //% blockId=lineMonitorStart
     //% block="start line monitor"
     //% subcategory="Class"
-    //% group="ClassLineSafety"
+    //% group="Class03LineSafety"
     export function startLineSafetyMonitor(
         pin: DigitalPin = DigitalPin.P15,
         color: number = 0,
@@ -1634,7 +1634,7 @@ namespace maqueenPlusV2 {
                 if (deviated && !deviationLatched) {
                     // 레이스 타이머가 동작 중이면 이탈 시점의 경과 시간을 "실패 기록"으로 저장하고 타이머를 멈춤
                     if (raceFinishMonitorActive) {
-                        raceFailTime = input.runningTime();
+                        raceFailTime = control.millis();
                         raceFailElapsedSeconds = Math.idiv(raceFailTime - raceStartTime, 1000);
                         raceFailDistanceCm = raceDistanceCm;
                         raceFinishMonitorActive = false;
@@ -1658,7 +1658,7 @@ namespace maqueenPlusV2 {
     //% blockId=lineMonitorStop
     //% block="stop line monitor"
     //% subcategory="Class"
-    //% group="ClassLineSafety"
+    //% group="Class03LineSafety"
     export function stopLineSafetyMonitor(pin: DigitalPin = DigitalPin.P15): void {
         safetyMonitorActive = false;
     }
@@ -1672,7 +1672,7 @@ namespace maqueenPlusV2 {
     //% block="when line deviated"
     //% blockGap=16
     //% subcategory="Class"
-    //% group="ClassLineSafety"
+    //% group="Class03LineSafety"
     export function onLineDeviated(body: () => void): void {
         control.onEvent(LINE_DEVIATED_EVENT_SOURCE, LINE_DEVIATED_EVENT_VALUE, body);
     }
@@ -1685,7 +1685,7 @@ namespace maqueenPlusV2 {
     //% blockId=warnWrong
     //% block="warn wrong (sound and light)"
     //% subcategory="Class"
-    //% group="ClassLineSafety"
+    //% group="Class03LineSafety"
     export function warnWrong(): void {
         stopAnimations(DigitalPin.P15);
         for (let i = 0; i < 3; i++) {
@@ -1709,7 +1709,7 @@ namespace maqueenPlusV2 {
     //% blockId=I2CInitForClass
     //% block="initialize via I2C until success"
     //% subcategory="Class"
-    //% group="ClassSetup"
+    //% group="Class01Setup"
     export function I2CInitForClass(): void {
         I2CInit();
     }
@@ -1725,7 +1725,7 @@ namespace maqueenPlusV2 {
     //% speed.min=0 speed.max=255
     //% weight=7
     //% subcategory="Class"
-    //% group="ClassSetup"
+    //% group="Class02Drive"
     export function controlMotorForClass(emotor: MyEnumMotor, edir: MyEnumDir, speed: number): void {
         controlMotor(emotor, edir, speed);
     }
@@ -1738,7 +1738,7 @@ namespace maqueenPlusV2 {
     //% block="set %emotor stop"
     //% weight=6
     //% subcategory="Class"
-    //% group="ClassSetup"
+    //% group="Class02Drive"
     export function controlMotorStopForClass(emotor: MyEnumMotor): void {
         controlMotorStop(emotor);
     }
@@ -1753,7 +1753,7 @@ namespace maqueenPlusV2 {
     //% block="기다리기 %seconds 초"
     //% weight=5.9
     //% subcategory="Class"
-    //% group="ClassSetup"
+    //% group="Class01Setup"
     export function waitSecondsForClass(seconds: number): void {
         basic.pause(Math.round(seconds * 1000));
     }
@@ -1778,11 +1778,11 @@ namespace maqueenPlusV2 {
     //% blockId=startRaceTimer
     //% block="레이스 타이머 시작"
     //% subcategory="Class"
-    //% group="ClassRaceTimer"
+    //% group="Class04RaceTimer"
     export function startRaceTimer(): void {
         raceFinishMonitorActive = false;
         basic.pause(60);
-        raceStartTime = input.runningTime();
+        raceStartTime = control.millis();
         raceFinishTime = 0;
         raceFinishElapsedSeconds = 0;
         raceFailTime = 0;
@@ -1804,7 +1804,7 @@ namespace maqueenPlusV2 {
                 if (!allBlack) seenNonBlack = true;
 
                 // 좌/우 바퀴 속도(cm/s)를 경과 시간만큼 적분해 이동 거리(cm)를 역산
-                let now = input.runningTime();
+                let now = control.millis();
                 let speeds = readBothWheelSpeeds();
                 raceDistanceCm += (speeds[0] + speeds[1]) / 2 * (now - lastSampleTime) / 1000;
                 lastSampleTime = now;
@@ -1834,7 +1834,7 @@ namespace maqueenPlusV2 {
     //% block="도착선에 도착하면"
     //% blockGap=16
     //% subcategory="Class"
-    //% group="ClassRaceTimer"
+    //% group="Class04RaceTimer"
     export function onFinishLineArrived(body: () => void): void {
         control.onEvent(RACE_FINISH_EVENT_SOURCE, RACE_FINISH_EVENT_VALUE, body);
     }
@@ -1848,11 +1848,11 @@ namespace maqueenPlusV2 {
     //% blockId=getRaceElapsedSeconds
     //% block="레이스 경과 시간(초)"
     //% subcategory="Class"
-    //% group="ClassRaceTimer"
+    //% group="Class04RaceTimer"
     export function getRaceElapsedSeconds(): number {
         if (raceFinishTime > 0) return raceFinishElapsedSeconds;
         if (raceFailTime > 0) return raceFailElapsedSeconds;
-        return Math.idiv(input.runningTime() - raceStartTime, 1000);
+        return Math.idiv(control.millis() - raceStartTime, 1000);
     }
 
     /**
@@ -1864,7 +1864,7 @@ namespace maqueenPlusV2 {
     //% blockId=getRaceFailSeconds
     //% block="라인 이탈 실패 시간(초)"
     //% subcategory="Class"
-    //% group="ClassRaceTimer"
+    //% group="Class04RaceTimer"
     export function getRaceFailSeconds(): number {
         return raceFailElapsedSeconds;
     }
@@ -1879,7 +1879,7 @@ namespace maqueenPlusV2 {
     //% blockId=getRaceDistanceCm
     //% block="레이스 이동 거리(cm)"
     //% subcategory="Class"
-    //% group="ClassRaceTimer"
+    //% group="Class04RaceTimer"
     export function getRaceDistanceCm(): number {
         if (raceFinishTime > 0) return raceFinishDistanceCm;
         if (raceFailTime > 0) return raceFailDistanceCm;
@@ -1895,9 +1895,9 @@ namespace maqueenPlusV2 {
     //% blockId=showRaceResult
     //% block="결승선 도착 시간 표시"
     //% subcategory="Class"
-    //% group="ClassRaceTimer"
+    //% group="Class04RaceTimer"
     export function showRaceResult(): void {
-        let end = raceFinishTime > 0 ? raceFinishTime : (raceFailTime > 0 ? raceFailTime : input.runningTime());
+        let end = raceFinishTime > 0 ? raceFinishTime : (raceFailTime > 0 ? raceFailTime : control.millis());
         let ms = end - raceStartTime;
         let secs = Math.idiv(ms, 1000);
         let tenths = Math.idiv(ms % 1000, 100);
@@ -1916,7 +1916,7 @@ namespace maqueenPlusV2 {
     //% blockId=radioSetupForClass
     //% block="라디오 채널 %channel 로 설정하고 내 식별번호 %myId 저장"
     //% subcategory="Class"
-    //% group="ClassRadio"
+    //% group="Class05Radio"
     export function radioSetupForClass(channel: number, myId: number): void {
         radio.setGroup(channel);
         myRadioId = myId;
@@ -1930,7 +1930,7 @@ namespace maqueenPlusV2 {
     //% blockId=radioSendLineDeviatedForClass
     //% block="라인 이탈 정보 라디오로 보내기"
     //% subcategory="Class"
-    //% group="ClassRadio"
+    //% group="Class05Radio"
     export function radioSendLineDeviatedForClass(): void {
         radio.sendValue("id", myRadioId);
         radio.sendValue("ok", 0);
@@ -1946,7 +1946,7 @@ namespace maqueenPlusV2 {
     //% blockId=radioSendFinishForClass
     //% block="도착 정보 라디오로 보내기"
     //% subcategory="Class"
-    //% group="ClassRadio"
+    //% group="Class05Radio"
     export function radioSendFinishForClass(): void {
         radio.sendValue("id", myRadioId);
         radio.sendValue("ok", 1);

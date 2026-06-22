@@ -12,6 +12,7 @@
         "pxt_modules/core/dal.d.ts",
         "pxt_modules/core/enums.d.ts",
         "pxt_modules/core/shims.d.ts",
+        "pxt_modules/radio/shims.d.ts",
         "pxt_modules/ws2812b/main.ts"
     ]
 }

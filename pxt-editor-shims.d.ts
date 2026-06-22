@@ -22,3 +22,7 @@ declare namespace pins {
     function i2cWriteNumber(address: number, value: number, format: NumberFormat, repeated?: boolean): void;
     function i2cReadNumber(address: number, format: NumberFormat, repeated?: boolean): number;
 }
+
+declare namespace radio {
+    function sendValue(name: string, value: number): void;
+}
