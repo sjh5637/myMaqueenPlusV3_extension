@@ -1673,6 +1673,8 @@ namespace maqueenPlusV2 {
     //% block="레이스 타이머 시작"
     //% subcategory="Class"
     export function startRaceTimer(): void {
+        raceFinishMonitorActive = false;
+        basic.pause(60);
         raceStartTime = input.runningTime();
         raceFinishTime = 0;
         raceFinishMonitorActive = true;
@@ -1719,7 +1721,7 @@ namespace maqueenPlusV2 {
     //% subcategory="Class"
     export function getRaceElapsedSeconds(): number {
         let end = raceFinishTime > 0 ? raceFinishTime : input.runningTime();
-        return Math.round((end - raceStartTime) / 1000);
+        return Math.idiv(end - raceStartTime, 1000);
     }
 
     /**
