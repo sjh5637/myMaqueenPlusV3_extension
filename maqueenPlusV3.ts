@@ -16,7 +16,7 @@ const enum PatrolSpeed {
  * Custom graphic block
  */
 //% weight=100 color=#0fbc11 icon="\uf067" block="MaqueenPlusV3"
-//% groups="['Setup', 'Motor', 'LED', 'Sensors', 'NeoPixel', 'V3', 'Effects', 'Class01Setup', 'Class03LineSafety', 'Class04RaceTimer', 'NewSetup', 'NewDrive', 'NewRaceTimer', 'NewEmotion']"
+//% groups="['Setup', 'Motor', 'LED', 'Sensors', 'NeoPixel', 'V3', 'Effects', 'NewRaceTimer', 'Class01Setup', 'Class02Drive', 'Class03LineSafety', 'Class04RaceTimer', 'Class05Emotion']"
 //% subcategories="['New Features', 'Class']"
 namespace maqueenPlusV2 {
 
@@ -162,13 +162,11 @@ namespace maqueenPlusV2 {
     const VERSION_CNT_REGISTER = 0X32;
     const VERSION_DATA_REGISTER = 0X33;
     
-    let irstate: number;
     let neopixel_buf = pins.createBuffer(16 * 3);
     for (let i = 0; i < 16 * 3; i++) {
         neopixel_buf[i] = 0
     }
     let _brightness = 255
-    let state: number;
 
     // Line safety monitor state variables
     const LINE_DEVIATED_EVENT_SOURCE = 3101;
@@ -1403,7 +1401,7 @@ namespace maqueenPlusV2 {
     //% blockId=expressEmotion
     //% block="express emotion %emotion"
     //% subcategory="Class"
-    //% group="NewEmotion"
+    //% group="Class05Emotion"
     export function expressEmotion(emotion: MyEmotion): void {
         stopAnimations(DigitalPin.P15);
 
@@ -1669,7 +1667,6 @@ namespace maqueenPlusV2 {
                     if (raceFinishMonitorActive) {
                         raceFailTime = control.millis();
                         raceFailElapsedSeconds = Math.idiv(raceFailTime - raceStartTime, 1000);
-                        raceFinishMonitorActive = false;
                     }
                     control.raiseEvent(LINE_DEVIATED_EVENT_SOURCE, LINE_DEVIATED_EVENT_VALUE);
                     deviationLatched = true;
@@ -1741,7 +1738,7 @@ namespace maqueenPlusV2 {
     //% blockId=I2CInitForClass
     //% block="initialize via I2C until success"
     //% subcategory="Class"
-    //% group="NewSetup"
+    //% group="Class01Setup"
     export function I2CInitForClass(): void {
         I2CInit();
     }
@@ -1757,7 +1754,7 @@ namespace maqueenPlusV2 {
     //% speed.min=0 speed.max=255
     //% weight=7
     //% subcategory="Class"
-    //% group="NewDrive"
+    //% group="Class02Drive"
     export function controlMotorForClass(emotor: MyEnumMotor, edir: MyEnumDir, speed: number): void {
         controlMotor(emotor, edir, speed);
     }
@@ -1770,7 +1767,7 @@ namespace maqueenPlusV2 {
     //% block="set %emotor stop"
     //% weight=6
     //% subcategory="Class"
-    //% group="NewDrive"
+    //% group="Class02Drive"
     export function controlMotorStopForClass(emotor: MyEnumMotor): void {
         controlMotorStop(emotor);
     }
@@ -1828,7 +1825,6 @@ namespace maqueenPlusV2 {
                     seenNonBlack = true;
                     finishLatched = false;
                 } else if (allBlack && seenNonBlack && !finishLatched) {
-                    safetyMonitorActive = false;
                     raceFinishTime = control.millis();
                     raceFinishElapsedSeconds = Math.idiv(raceFinishTime - raceStartTime, 1000);
                     finishLatched = true;
