@@ -16,7 +16,7 @@ const enum PatrolSpeed {
  * Custom graphic block
  */
 //% weight=100 color=#0fbc11 icon="\uf067" block="MaqueenPlusV3"
-//% groups="['Setup', 'Motor', 'LED', 'Sensors', 'NeoPixel', 'V3', 'Effects', 'Class01Setup', 'Class03LineSafety', 'Class04RaceTimer', 'NewSetup', 'NewDrive', 'NewRaceTimer', 'NewRadio', 'NewEmotion']"
+//% groups="['Setup', 'Motor', 'LED', 'Sensors', 'NeoPixel', 'V3', 'Effects', 'Class01Setup', 'Class03LineSafety', 'Class04RaceTimer', 'NewSetup', 'NewDrive', 'NewRaceTimer', 'NewEmotion']"
 //% subcategories="['New Features', 'Class']"
 namespace maqueenPlusV2 {
 
@@ -263,7 +263,6 @@ namespace maqueenPlusV2 {
      */
 
     //% blockId=controlMotorStop
-    //% blockId=controlMotorStop
     //% block="set %emotor stop"
     //% weight=98
     //% group="Motor"
@@ -308,6 +307,7 @@ namespace maqueenPlusV2 {
     //% block="auto-balance drive %edir base speed %speed"
     //% speed.min=0 speed.max=255
     //% weight=97
+    //% subcategory="New Features"
     //% group="Motor"
     export function startAutoBalanceDrive(edir: MyEnumDir, speed: number): void {
         autoBalanceActive = true;
@@ -342,6 +342,7 @@ namespace maqueenPlusV2 {
     //% blockId=stopAutoBalanceDrive
     //% block="stop auto-balance drive"
     //% weight=96
+    //% subcategory="New Features"
     //% group="Motor"
     export function stopAutoBalanceDrive(): void {
         autoBalanceActive = false;
@@ -1233,6 +1234,7 @@ namespace maqueenPlusV2 {
     //% blockId=stopAnimations
     //% block="SET PIN|%pin stop all animations"
     //% pin.defl=DigitalPin.P15
+    //% subcategory="New Features"
     //% group="Effects"
     export function stopAnimations(pin: DigitalPin) {
         activeAnimationId++;
@@ -1253,6 +1255,7 @@ namespace maqueenPlusV2 {
     //% blockId=startSiren
     //% pin.defl=DigitalPin.P15
     //% interval.defl=200
+    //% subcategory="New Features"
     //% group="Effects"
     //% block="SET PIN|%pin start siren color1|%color1=neopixel_colors color2|%color2=neopixel_colors at interval|%interval ms"
     export function startSiren(pin: DigitalPin, color1: number, color2: number, interval: number) {
@@ -1293,6 +1296,7 @@ namespace maqueenPlusV2 {
     //% blockId=startBlinker
     //% pin.defl=DigitalPin.P15
     //% interval.defl=500
+    //% subcategory="New Features"
     //% group="Effects"
     //% block="SET PIN|%pin start blinker|%type color|%color=neopixel_colors at interval|%interval ms"
     export function startBlinker(pin: DigitalPin, type: DirectionType, color: number, interval: number) {
@@ -1334,6 +1338,7 @@ namespace maqueenPlusV2 {
     //% blockId=startBreathing
     //% pin.defl=DigitalPin.P15
     //% speed.min=1 speed.max=5 speed.defl=3
+    //% subcategory="New Features"
     //% group="Effects"
     //% block="SET PIN|%pin start breathing color|%color=neopixel_colors speed|%speed"
     export function startBreathing(pin: DigitalPin, color: number, speed: number) {
@@ -1397,7 +1402,7 @@ namespace maqueenPlusV2 {
     //% weight=5
     //% blockId=expressEmotion
     //% block="express emotion %emotion"
-    //% subcategory="New Features"
+    //% subcategory="Class"
     //% group="NewEmotion"
     export function expressEmotion(emotion: MyEmotion): void {
         stopAnimations(DigitalPin.P15);
@@ -1617,16 +1622,11 @@ namespace maqueenPlusV2 {
      */
     //% weight=12
     //% blockId=lineMonitorStart
-    //% block="start line monitor level %level || pin %pin color %color stopMotors %stopMotors lightAlert %lightAlert soundAlert %soundAlert"
+    //% block="start line monitor level %level"
     //% subcategory="Class"
     //% group="Class03LineSafety"
     export function startLineSafetyMonitor(
-        level: MyLineSafetyLevel = MyLineSafetyLevel.Level1,
-        pin: DigitalPin = DigitalPin.P15,
-        color: number = 0,
-        stopMotors: boolean = false,
-        lightAlert: boolean = false,
-        soundAlert: boolean = false
+        level: MyLineSafetyLevel = MyLineSafetyLevel.Level1
     ): void {
         if (safetyMonitorActive) return;
         safetyMonitorActive = true;
@@ -1669,7 +1669,6 @@ namespace maqueenPlusV2 {
                     if (raceFinishMonitorActive) {
                         raceFailTime = control.millis();
                         raceFailElapsedSeconds = Math.idiv(raceFailTime - raceStartTime, 1000);
-                        raceFailDistanceCm = raceDistanceCm;
                         raceFinishMonitorActive = false;
                     }
                     control.raiseEvent(LINE_DEVIATED_EVENT_SOURCE, LINE_DEVIATED_EVENT_VALUE);
@@ -1692,7 +1691,7 @@ namespace maqueenPlusV2 {
     //% block="stop line monitor"
     //% subcategory="Class"
     //% group="Class03LineSafety"
-    export function stopLineSafetyMonitor(pin: DigitalPin = DigitalPin.P15): void {
+    export function stopLineSafetyMonitor(): void {
         safetyMonitorActive = false;
     }
 
@@ -1741,7 +1740,7 @@ namespace maqueenPlusV2 {
     //% weight=8
     //% blockId=I2CInitForClass
     //% block="initialize via I2C until success"
-    //% subcategory="New Features"
+    //% subcategory="Class"
     //% group="NewSetup"
     export function I2CInitForClass(): void {
         I2CInit();
@@ -1757,7 +1756,7 @@ namespace maqueenPlusV2 {
     //% block="set %emotor direction %edir speed %speed"
     //% speed.min=0 speed.max=255
     //% weight=7
-    //% subcategory="New Features"
+    //% subcategory="Class"
     //% group="NewDrive"
     export function controlMotorForClass(emotor: MyEnumMotor, edir: MyEnumDir, speed: number): void {
         controlMotor(emotor, edir, speed);
@@ -1770,7 +1769,7 @@ namespace maqueenPlusV2 {
     //% blockId=controlMotorStopForClass
     //% block="set %emotor stop"
     //% weight=6
-    //% subcategory="New Features"
+    //% subcategory="Class"
     //% group="NewDrive"
     export function controlMotorStopForClass(emotor: MyEnumMotor): void {
         controlMotorStop(emotor);
@@ -1799,34 +1798,24 @@ namespace maqueenPlusV2 {
     let raceFinishElapsedSeconds = 0;  // 결승선 도착 시 저장된 경과 시간(초)
     let raceFailTime = 0;
     let raceFailElapsedSeconds = 0;    // 라인 이탈(실패) 시 저장된 경과 시간(초)
-    let raceDistanceCm = 0;            // 좌/우 바퀴 속도를 적분해 역산한 누적 이동 거리(cm)
-    let raceFinishDistanceCm = 0;      // 결승선 도착 시 저장된 이동 거리(cm)
-    let raceFailDistanceCm = 0;        // 라인 이탈(실패) 시 저장된 이동 거리(cm)
 
     /**
-     * 수업용: 레이스 타이머를 시작하고 도착선(앞 센서 L1·M·R1 모두 흑색) 감지를 시작합니다.
-     * Start the race timer and begin monitoring for the finish line (L1, M, R1 all detect black).
+     * 수업용: 도착선(앞 센서 L1·M·R1 모두 흑색) 감지를 시작합니다. 감지되면 "도착선에 도착하면" 이벤트가 발생합니다.
+     * 감지는 자동으로 꺼지지 않으므로, 다시 끄려면 "도착선 감지 끄기"를 호출하세요.
+     * Start monitoring for the finish line (L1, M, R1 all detect black). Raises the "on finish line arrived" event when detected.
+     * Detection keeps running until stopFinishLineMonitor() is called.
      */
-    //% weight=5
-    //% blockId=startRaceTimer
-    //% block="레이스 타이머 시작"
-    //% subcategory="New Features"
-    //% group="NewRaceTimer"
-    export function startRaceTimer(): void {
-        raceFinishMonitorActive = false;
-        basic.pause(60);
-        raceStartTime = control.millis();
-        raceFinishTime = 0;
-        raceFinishElapsedSeconds = 0;
-        raceFailTime = 0;
-        raceFailElapsedSeconds = 0;
-        raceDistanceCm = 0;
-        raceFinishDistanceCm = 0;
-        raceFailDistanceCm = 0;
+    //% weight=6
+    //% blockId=startFinishLineMonitor
+    //% block="start finish line monitor"
+    //% subcategory="Class"
+    //% group="Class04RaceTimer"
+    export function startFinishLineMonitor(): void {
+        if (raceFinishMonitorActive) return;
         raceFinishMonitorActive = true;
         control.inBackground(function () {
             let seenNonBlack = false;
-            let lastSampleTime = raceStartTime;
+            let finishLatched = false;
             while (raceFinishMonitorActive) {
                 let bits = readLineSensorBits();
                 let l1 = (bits & 0x08) ? 1 : 0;
@@ -1834,20 +1823,15 @@ namespace maqueenPlusV2 {
                 let r1 = (bits & 0x02) ? 1 : 0;
                 // 결승선 판정: L1, M, R1 3개 센서가 모두 흑색
                 let allBlack = (l1 === 1 && m === 1 && r1 === 1);
-                if (!allBlack) seenNonBlack = true;
 
-                // 좌/우 바퀴 속도(cm/s)를 경과 시간만큼 적분해 이동 거리(cm)를 역산
-                let now = control.millis();
-                let speeds = readBothWheelSpeeds();
-                raceDistanceCm += (speeds[0] + speeds[1]) / 2 * (now - lastSampleTime) / 1000;
-                lastSampleTime = now;
-
-                if (allBlack && seenNonBlack) {
+                if (!allBlack) {
+                    seenNonBlack = true;
+                    finishLatched = false;
+                } else if (allBlack && seenNonBlack && !finishLatched) {
                     safetyMonitorActive = false;
-                    raceFinishTime = now;
+                    raceFinishTime = control.millis();
                     raceFinishElapsedSeconds = Math.idiv(raceFinishTime - raceStartTime, 1000);
-                    raceFinishDistanceCm = raceDistanceCm;
-                    raceFinishMonitorActive = false;
+                    finishLatched = true;
                     control.raiseEvent(RACE_FINISH_EVENT_SOURCE, RACE_FINISH_EVENT_VALUE);
                 }
                 basic.pause(50);
@@ -1856,12 +1840,44 @@ namespace maqueenPlusV2 {
     }
 
     /**
-     * 수업용: startRaceTimer()로 시작한 결승선 감지(L1, M, R1 3개 센서 모두 흑색)에 도착하면
-     * 실행할 코드를 등록합니다. startRaceTimer()를 먼저 호출하지 않으면 이 이벤트는 발생하지 않습니다.
+     * 수업용: 도착선 감지를 중지합니다.
+     * Stop the finish line monitor.
+     */
+    //% weight=5.8
+    //% blockId=stopFinishLineMonitor
+    //% block="stop finish line monitor"
+    //% subcategory="Class"
+    //% group="Class04RaceTimer"
+    export function stopFinishLineMonitor(): void {
+        raceFinishMonitorActive = false;
+    }
+
+    /**
+     * 수업용: 시간 기록 변수를 0으로 초기화하고 타이머를 시작합니다.
+     * 도착선 감지는 별도로 startFinishLineMonitor()를 호출해야 시작됩니다.
+     * Reset the time tracking variables and start the timer.
+     * Finish line detection must be started separately via startFinishLineMonitor().
+     */
+    //% weight=5
+    //% blockId=startRaceTimer
+    //% block="start timer"
+    //% subcategory="Class"
+    //% group="Class04RaceTimer"
+    export function startRaceTimer(): void {
+        raceStartTime = control.millis();
+        raceFinishTime = 0;
+        raceFinishElapsedSeconds = 0;
+        raceFailTime = 0;
+        raceFailElapsedSeconds = 0;
+    }
+
+    /**
+     * 수업용: startFinishLineMonitor()로 시작한 결승선 감지(L1, M, R1 3개 센서 모두 흑색)에 도착하면
+     * 실행할 코드를 등록합니다. startFinishLineMonitor()를 먼저 호출하지 않으면 이 이벤트는 발생하지 않습니다.
      * V3 내장 라인 주행(patrolling ON) 사용 시, 핸들러 안에서 모터를 멈추려면
      * controlMotorStop 전에 patrolling(OFF)를 반드시 먼저 호출하세요.
-     * Run code when the finish line is detected (L1, M, R1 all black), as started by startRaceTimer().
-     * This event never fires unless startRaceTimer() has been called first.
+     * Run code when the finish line is detected (L1, M, R1 all black), as started by startFinishLineMonitor().
+     * This event never fires unless startFinishLineMonitor() has been called first.
      * @param body code to run on finish
      */
     //% weight=4
@@ -1881,7 +1897,7 @@ namespace maqueenPlusV2 {
      */
     //% weight=3
     //% blockId=getRaceElapsedSeconds
-    //% block="레이스 경과 시간(초)"
+    //% block="타이머 경과 시간(초)"
     //% subcategory="New Features"
     //% group="NewRaceTimer"
     export function getRaceElapsedSeconds(): number {
@@ -1891,44 +1907,13 @@ namespace maqueenPlusV2 {
     }
 
     /**
-     * 수업용: 라인을 이탈해서 레이스에 실패했을 때 저장된 경과 시간을 초(정수) 단위로 반환합니다.
-     * 이탈한 적이 없으면 0을 반환합니다.
-     * Return the elapsed time (in whole seconds) captured when the robot deviated from the line. Returns 0 if it never deviated.
-     */
-    //% weight=2.5
-    //% blockId=getRaceFailSeconds
-    //% block="라인 이탈 실패 시간(초)"
-    //% subcategory="New Features"
-    //% group="NewRaceTimer"
-    export function getRaceFailSeconds(): number {
-        return raceFailElapsedSeconds;
-    }
-
-    /**
-     * 수업용: 좌/우 바퀴 속도를 적분해 역산한 이동 거리를 cm 단위로 반환합니다.
-     * 도착선에 도착했으면 도착 순간의 거리를, 라인을 이탈했으면 이탈 순간의 거리를 반환합니다.
-     * Return the estimated distance traveled in cm, dead-reckoned from wheel speed.
-     * Returns the captured finish or fail distance once the race has ended.
-     */
-    //% weight=2.7
-    //% blockId=getRaceDistanceCm
-    //% block="레이스 이동 거리(cm)"
-    //% subcategory="New Features"
-    //% group="NewRaceTimer"
-    export function getRaceDistanceCm(): number {
-        if (raceFinishTime > 0) return raceFinishDistanceCm;
-        if (raceFailTime > 0) return raceFailDistanceCm;
-        return raceDistanceCm;
-    }
-
-    /**
      * 수업용: 도착 시간을 마이크로비트 LED에 소수점 1자리(0.1초 단위)로 표시합니다.
      * 예: 12.7초 → "12.7" 스크롤 표시.
      * Show the finish time on the micro:bit LED display with one decimal place (0.1s precision).
      */
     //% weight=2
     //% blockId=showRaceResult
-    //% block="결승선 도착 시간 표시"
+    //% block="타이머 시간 표시"
     //% subcategory="New Features"
     //% group="NewRaceTimer"
     export function showRaceResult(): void {
@@ -1937,56 +1922,6 @@ namespace maqueenPlusV2 {
         let secs = Math.idiv(ms, 1000);
         let tenths = Math.idiv(ms % 1000, 100);
         basic.showString(secs + "." + tenths);
-    }
-
-    let myRadioId = 0;
-
-    /**
-     * 수업용: 라디오 채널을 설정하고 내 식별번호를 저장합니다. "시작하기"에 놓고 사용하세요.
-     * Set the radio group/channel and store this micro:bit's identification number. Place in "on start".
-     * @param channel radio group number, eg: 1
-     * @param myId this micro:bit's identification number, eg: 1
-     */
-    //% weight=20
-    //% blockId=radioSetupForClass
-    //% block="라디오 채널 %channel 로 설정하고 내 식별번호 %myId 저장"
-    //% subcategory="New Features"
-    //% group="NewRadio"
-    export function radioSetupForClass(channel: number, myId: number): void {
-        radio.setGroup(channel);
-        myRadioId = myId;
-    }
-
-    /**
-     * 수업용: 라인 이탈(실패) 정보를 라디오로 보냅니다 (식별번호, 실패여부, 이동거리, 걸린시간).
-     * Send line-deviation (failure) info over radio: id, success flag, distance, elapsed time.
-     */
-    //% weight=19
-    //% blockId=radioSendLineDeviatedForClass
-    //% block="라인 이탈 정보 라디오로 보내기"
-    //% subcategory="New Features"
-    //% group="NewRadio"
-    export function radioSendLineDeviatedForClass(): void {
-        radio.sendValue("id", myRadioId);
-        radio.sendValue("ok", 0);
-        radio.sendValue("dist", raceFailDistanceCm);
-        radio.sendValue("time", raceFailElapsedSeconds);
-    }
-
-    /**
-     * 수업용: 도착 정보를 라디오로 보냅니다 (식별번호, 실패여부, 이동거리, 걸린시간).
-     * Send finish info over radio: id, success flag, distance, elapsed time.
-     */
-    //% weight=18
-    //% blockId=radioSendFinishForClass
-    //% block="도착 정보 라디오로 보내기"
-    //% subcategory="New Features"
-    //% group="NewRadio"
-    export function radioSendFinishForClass(): void {
-        radio.sendValue("id", myRadioId);
-        radio.sendValue("ok", 1);
-        radio.sendValue("dist", raceFinishDistanceCm);
-        radio.sendValue("time", raceFinishElapsedSeconds);
     }
 
 }
